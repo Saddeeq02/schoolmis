@@ -1,0 +1,266 @@
+:root {
+    --primary-color: #4a91e2af;
+    --secondary-color: #67B26F;
+    --error-color: #ff4444;
+    --success-color: #00C851;
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.2);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    background: linear-gradient(45deg, #4A90E2, #67B26F);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    border: 1px solid var(--glass-border);
+}
+
+/* Dashboard Cards */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.card i {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+    color: #7c7c7c;
+}
+
+.card h3 {
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.card p {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Forms */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 100%;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+label {
+    color: #fff;
+    font-weight: 500;
+}
+
+input, select {
+    padding: 12px;
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    backdrop-filter: blur(5px);
+}
+
+input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Buttons */
+.btn, button {
+    padding: 12px 24px;
+    background: var(--secondary-color);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+    text-decoration: none;
+    text-align: center;
+    font-weight: 500;
+    backdrop-filter: blur(5px);
+}
+
+.btn:hover, button:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+.btn:active, button:active {
+    transform: translateY(0);
+}
+
+/* Recording Interface */
+.recording-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+#recordingIndicator {
+    background: var(--error-color);
+    color: #fff;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    animation: pulse 1.5s infinite;
+}
+
+/* Audio Player */
+audio {
+    width: 100%;
+    margin-top: 10px;
+    border-radius: 10px;
+    background: var(--glass-bg);
+}
+
+/* Filters and Pagination */
+.filters {
+    background: var(--glass-bg);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.page-link {
+    padding: 8px 16px;
+    background: var(--glass-bg);
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.page-link.active {
+    background: var(--primary-color);
+}
+
+/* Tables */
+.recordings-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+    margin-top: 20px;
+}
+
+.recordings-table th {
+    background: var(--glass-bg);
+    color: #fff;
+    padding: 12px;
+    text-align: left;
+}
+
+.recordings-table td {
+    background: var(--glass-bg);
+    color: #fff;
+    padding: 12px;
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .recordings-table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .filter-group {
+        grid-template-columns: 1fr;
+    }
+
+    .btn, button {
+        padding: 15px;
+        width: 100%;
+    }
+
+    .date-filters {
+        flex-direction: column;
+    }
+
+    audio {
+        width: 100%;
+    }
+}
+
+/* Utility Classes */
+.alert {
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    color: #fff;
+    text-align: center;
+}
+
+.alert-success {
+    background: var(--success-color);
+}
+
+.alert-error {
+    background: var(--error-color);
+}

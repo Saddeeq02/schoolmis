@@ -1,0 +1,19 @@
+
+# Configuration files
+includes/config.php
+
+# Recordings directory
+recordings/*
+!recordings/.htaccess
+
+# Logs
+error.log
+*.log
+
+# Environment files
+.env
+.env.*
+
+# IDE files
+.idea/
+.vscode/
