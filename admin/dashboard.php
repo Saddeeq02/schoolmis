@@ -45,6 +45,18 @@ if ($_SESSION['role'] != 'admin') {
                 <p>View and manage student accounts</p>
             </a>
             
+            <a href="exams_list.php" class="card">
+                <i class="fas fa-file-alt"></i>
+                <h3>Exams</h3>
+                <p>Manage exams and report cards</p>
+            </a>
+            
+            <a href="teacher_subjects.php" class="card">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <h3>Teacher Assignments</h3>
+                <p>Assign teachers to subjects</p>
+            </a>
+            
             <a href="admin_qr_generator.php" class="card">
                 <i class="fas fa-qrcode"></i>
                 <h3>QR Generator</h3>

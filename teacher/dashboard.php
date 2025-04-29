@@ -45,6 +45,12 @@ $teacherName = $user['name'] ?? 'Teacher';
                 <h3>View Recordings</h3>
                 <p>Access your recorded sessions</p>
             </a>
+            
+            <a href="exams_list.php" class="card">
+                <i class="fas fa-graduation-cap"></i>
+                <h3>Exams</h3>
+                <p>Enter and manage student scores</p>
+            </a>
         </div>
 
         <!-- <div class="mt-4">
