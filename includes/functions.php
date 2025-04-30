@@ -46,6 +46,19 @@ function getStudentById($pdo, $studentId) {
     }
 }
 
+// Function to get a student by admission number
+function getStudentByAdmissionNumber($pdo, $admissionNumber) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM students WHERE admission_number = :admission_number");
+        $stmt->bindParam(':admission_number', $admissionNumber, PDO::PARAM_STR);
+        $stmt->execute();
+        return $stmt->fetch();
+    } catch (PDOException $e) {
+        error_log("Error fetching student by admission number: " . $e->getMessage());
+        return false;
+    }
+}
+
 // Function to add a new student
 function addStudent($pdo, $admissionNumber, $name, $classId, $userId) {
     try {
@@ -434,7 +447,7 @@ function getSchoolDetails($pdo, $schoolName) {
 }
 
 // Function to add or update school details
-function saveSchoolDetails($pdo, $schoolName, $address, $logoPath, $userId) {
+function saveSchoolDetails($pdo, $schoolName, $address, $logoPath, $borderColor, $userId) {
     try {
         // Check if school details already exist
         $checkStmt = $pdo->prepare("SELECT id FROM school_details WHERE school_name = :school_name");
@@ -447,15 +460,16 @@ function saveSchoolDetails($pdo, $schoolName, $address, $logoPath, $userId) {
             $stmt = $pdo->prepare("
                 UPDATE school_details 
                 SET address = :address, 
-                    logo_path = :logo_path, 
+                    logo_path = :logo_path,
+                    border_color = :border_color,
                     updated_at = CURRENT_TIMESTAMP 
                 WHERE school_name = :school_name
             ");
         } else {
             // Insert new record
             $stmt = $pdo->prepare("
-                INSERT INTO school_details (school_name, address, logo_path, created_by) 
-                VALUES (:school_name, :address, :logo_path, :created_by)
+                INSERT INTO school_details (school_name, address, logo_path, border_color, created_by) 
+                VALUES (:school_name, :address, :logo_path, :border_color, :created_by)
             ");
             $stmt->bindParam(':created_by', $userId, PDO::PARAM_INT);
         }
@@ -463,6 +477,7 @@ function saveSchoolDetails($pdo, $schoolName, $address, $logoPath, $userId) {
         $stmt->bindParam(':school_name', $schoolName, PDO::PARAM_STR);
         $stmt->bindParam(':address', $address, PDO::PARAM_STR);
         $stmt->bindParam(':logo_path', $logoPath, PDO::PARAM_STR);
+        $stmt->bindParam(':border_color', $borderColor, PDO::PARAM_STR);
         
         $stmt->execute();
         
@@ -884,6 +899,296 @@ function getExamsForTeacher($pdo, $teacherId) {
     } catch (PDOException $e) {
         error_log("Error fetching exams for teacher: " . $e->getMessage());
         return [];
+    }
+}
+
+// Function to get a class by ID
+function getClassById($pdo, $classId) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM classes WHERE id = :id");
+        $stmt->bindParam(':id', $classId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch();
+    } catch (PDOException $e) {
+        error_log("Error fetching class: " . $e->getMessage());
+        return false;
+    }
+}
+
+// Function to get subjects by class ID
+function getSubjectsByClass($pdo, $classId) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT s.* 
+            FROM subjects s
+            JOIN teacher_subjects ts ON s.id = ts.subject_id
+            WHERE ts.class_id = :class_id
+            ORDER BY s.subject_name ASC
+        ");
+        $stmt->bindParam(':class_id', $classId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error fetching subjects by class: " . $e->getMessage());
+        return false;
+    }
+}
+
+// Function to get a student's score for a specific component
+function getStudentComponentScore($pdo, $studentId, $examId, $subjectId, $componentId) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT score FROM student_scores 
+            WHERE student_id = :student_id 
+            AND exam_id = :exam_id 
+            AND subject_id = :subject_id 
+            AND component_id = :component_id
+        ");
+        $stmt->bindParam(':student_id', $studentId, PDO::PARAM_INT);
+        $stmt->bindParam(':exam_id', $examId, PDO::PARAM_INT);
+        $stmt->bindParam(':subject_id', $subjectId, PDO::PARAM_INT);
+        $stmt->bindParam(':component_id', $componentId, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        $result = $stmt->fetch();
+        return $result ? $result['score'] : 0;
+    } catch (PDOException $e) {
+        error_log("Error fetching student component score: " . $e->getMessage());
+        return 0;
+    }
+}
+
+// Function to calculate grade based on score and max marks
+function calculateGrade($score, $maxMarks) {
+    if ($maxMarks == 0) return 'N/A';
+    
+    $percentage = ($score / $maxMarks) * 100;
+    
+    if ($percentage >= 90) return 'A+';
+    if ($percentage >= 80) return 'A';
+    if ($percentage >= 70) return 'B+';
+    if ($percentage >= 60) return 'B';
+    if ($percentage >= 50) return 'C+';
+    if ($percentage >= 40) return 'C';
+    if ($percentage >= 30) return 'D';
+    return 'F';
+}
+
+// Function to get remarks based on grade
+function getRemarks($grade) {
+    switch ($grade) {
+        case 'A+': return 'Outstanding';
+        case 'A': return 'Excellent';
+        case 'B+': return 'Very Good';
+        case 'B': return 'Good';
+        case 'C+': return 'Above Average';
+        case 'C': return 'Average';
+        case 'D': return 'Below Average';
+        case 'F': return 'Needs Improvement';
+        default: return 'N/A';
+    }
+}
+
+// Function to get term name from term number
+function getTerm($termNumber) {
+    switch ($termNumber) {
+        case 1: return 'First Term';
+        case 2: return 'Second Term';
+        case 3: return 'Third Term';
+        default: return 'Unknown Term';
+    }
+}
+
+// Function to get student position in class for an exam
+function getStudentPosition($pdo, $studentId, $examId, $classId) {
+    try {
+        // First, get all students in the class
+        $studentsStmt = $pdo->prepare("SELECT id FROM students WHERE class_id = :class_id");
+        $studentsStmt->bindParam(':class_id', $classId, PDO::PARAM_INT);
+        $studentsStmt->execute();
+        $students = $studentsStmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Get all subjects for the class
+        $subjectsStmt = $pdo->prepare("
+            SELECT DISTINCT s.id 
+            FROM subjects s
+            JOIN teacher_subjects ts ON s.id = ts.subject_id
+            WHERE ts.class_id = :class_id
+        ");
+        $subjectsStmt->bindParam(':class_id', $classId, PDO::PARAM_INT);
+        $subjectsStmt->execute();
+        $subjects = $subjectsStmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Calculate total score for each student
+        $scores = [];
+        foreach ($students as $student) {
+            $totalScore = 0;
+            $totalMaxMarks = 0;
+            
+            foreach ($subjects as $subject) {
+                // Get exam components
+                $componentsStmt = $pdo->prepare("
+                    SELECT id, max_marks FROM exam_components 
+                    WHERE exam_id = :exam_id AND is_enabled = 1
+                ");
+                $componentsStmt->bindParam(':exam_id', $examId, PDO::PARAM_INT);
+                $componentsStmt->execute();
+                $components = $componentsStmt->fetchAll();
+                
+                foreach ($components as $component) {
+                    $score = getStudentComponentScore($pdo, $student, $examId, $subject, $component['id']);
+                    $totalScore += $score;
+                    $totalMaxMarks += $component['max_marks'];
+                }
+            }
+            
+            // Store student's percentage
+            $percentage = ($totalMaxMarks > 0) ? ($totalScore / $totalMaxMarks) * 100 : 0;
+            $scores[$student] = $percentage;
+        }
+        
+        // Sort scores in descending order
+        arsort($scores);
+        
+        // Find position of the current student
+        $position = 1;
+        $lastScore = null;
+        $samePositionCount = 0;
+        
+        foreach ($scores as $student => $score) {
+            if ($lastScore !== null && $score < $lastScore) {
+                $position += $samePositionCount + 1;
+                $samePositionCount = 0;
+            } elseif ($lastScore !== null && $score == $lastScore) {
+                $samePositionCount++;
+            }
+            
+            if ($student == $studentId) {
+                // Add ordinal suffix
+                $suffix = 'th';
+                if ($position % 10 == 1 && $position % 100 != 11) {
+                    $suffix = 'st';
+                } elseif ($position % 10 == 2 && $position % 100 != 12) {
+                    $suffix = 'nd';
+                } elseif ($position % 10 == 3 && $position % 100 != 13) {
+                    $suffix = 'rd';
+                }
+                
+                return $position . $suffix . ' out of ' . count($students);
+            }
+            
+            $lastScore = $score;
+        }
+        
+        return 'N/A';
+    } catch (PDOException $e) {
+        error_log("Error calculating student position: " . $e->getMessage());
+        return 'N/A';
+    }
+}
+
+// Function to get teacher's comment based on overall performance
+function getTeacherComment($totalMarks, $totalMaxMarks) {
+    if ($totalMaxMarks == 0) return 'N/A';
+    
+    $percentage = ($totalMarks / $totalMaxMarks) * 100;
+    
+    if ($percentage >= 90) return 'An outstanding performance! Keep up the excellent work.';
+    if ($percentage >= 80) return 'Excellent performance! You have shown great understanding of the subjects.';
+    if ($percentage >= 70) return 'Very good performance! Continue with the same dedication.';
+    if ($percentage >= 60) return 'Good performance! With more effort, you can achieve even better results.';
+    if ($percentage >= 50) return 'Satisfactory performance. There is room for improvement.';
+    if ($percentage >= 40) return 'Average performance. Need to work harder in the coming term.';
+    return 'Below average performance. Requires significant improvement and more focus on studies.';
+}
+
+// Function to get principal's comment based on overall performance
+function getPrincipalComment($totalMarks, $totalMaxMarks) {
+    if ($totalMaxMarks == 0) return 'N/A';
+    
+    $percentage = ($totalMarks / $totalMaxMarks) * 100;
+    
+    if ($percentage >= 90) return 'Exceptional achievement! A model student with outstanding results.';
+    if ($percentage >= 80) return 'Excellent results! The school is proud of your academic achievements.';
+    if ($percentage >= 70) return 'Very good results! Keep up the good work and strive for excellence.';
+    if ($percentage >= 60) return 'Good performance! With continued effort, you can achieve greater heights.';
+    if ($percentage >= 50) return 'Fair performance. We encourage you to aim higher in the next term.';
+    if ($percentage >= 40) return 'Needs improvement. Please work closely with your teachers to improve your grades.';
+    return 'Requires immediate attention. Parents are advised to meet with the class teacher.';
+}
+
+// Function to get student results for a specific exam
+function getStudentExamResult($pdo, $studentId, $examId) {
+    try {
+        $student = getStudentById($pdo, $studentId);
+        if (!$student) {
+            return false;
+        }
+        
+        $exam = getExamById($pdo, $examId);
+        if (!$exam) {
+            return false;
+        }
+        
+        $class = getClassById($pdo, $student['class_id']);
+        $subjects = getSubjectsByClass($pdo, $student['class_id']);
+        $components = getExamComponents($pdo, $examId);
+        
+        $result = [
+            'student' => $student,
+            'exam' => $exam,
+            'class' => $class,
+            'subjects' => [],
+            'components' => $components,
+            'scores' => [],
+            'totals' => [
+                'obtained' => 0,
+                'maximum' => 0,
+                'percentage' => 0
+            ]
+        ];
+        
+        // Get scores for each subject
+        foreach ($subjects as $subject) {
+            $subjectScores = [];
+            $subjectTotal = 0;
+            $subjectMaxTotal = 0;
+            
+            foreach ($components as $component) {
+                if ($component['is_enabled']) {
+                    $score = getStudentComponentScore($pdo, $studentId, $examId, $subject['id'], $component['id']);
+                    $subjectScores[$component['id']] = $score;
+                    $subjectTotal += $score;
+                    $subjectMaxTotal += $component['max_marks'];
+                }
+            }
+            
+            $grade = calculateGrade($subjectTotal, $subjectMaxTotal);
+            $remarks = getRemarks($grade);
+            
+            $result['subjects'][$subject['id']] = [
+                'name' => $subject['subject_name'],
+                'total' => $subjectTotal,
+                'max_total' => $subjectMaxTotal,
+                'grade' => $grade,
+                'remarks' => $remarks
+            ];
+            
+            $result['scores'][$subject['id']] = $subjectScores;
+            $result['totals']['obtained'] += $subjectTotal;
+            $result['totals']['maximum'] += $subjectMaxTotal;
+        }
+        
+        if ($result['totals']['maximum'] > 0) {
+            $result['totals']['percentage'] = round(($result['totals']['obtained'] / $result['totals']['maximum']) * 100, 1);
+        }
+        
+        $result['position'] = getStudentPosition($pdo, $studentId, $examId, $student['class_id']);
+        
+        return $result;
+    } catch (PDOException $e) {
+        error_log("Error getting student exam result: " . $e->getMessage());
+        return false;
     }
 }
 ?>

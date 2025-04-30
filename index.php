@@ -12,5 +12,18 @@
         <a href="login.php" class="btn">Login</a>
         <a href="register.php" class="btn">Register</a>
     </div>
+    <div class="container">
+        <h1>Welcome to School Management System</h1>
+        <div class="dashboard-grid">
+            <a href="login.php" class="card">
+                <h3>Login</h3>
+                <p>Access your account</p>
+            </a>
+            <a href="student_results.php" class="card">
+                <h3>Student Results</h3>
+                <p>Check your exam results</p>
+            </a>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,84 +1,257 @@
+// admin/dashboard.php - Add school selector
 <?php
-session_start();
-include '../includes/auth.php';
-include '../includes/db.php';
-if ($_SESSION['role'] != 'admin') {
-    header("Location: ../index.php");
-    exit();
+require_once '../includes/config.php';
+require_once '../includes/db.php';
+require_once '../includes/auth.php';
+require_once '../includes/functions.php';
+require_once '../components/school_selector.php';
+
+// Check if user is logged in and is an admin
+if (!isLoggedIn() || !isAdmin()) {
+    header('Location: ../login.php');
+    exit;
+}
+
+// Handle school selection
+if (isset($_GET['school_id'])) {
+    $_SESSION['school_id'] = (int)$_GET['school_id'];
+}
+
+$schoolId = $_SESSION['school_id'] ?? 1;
+
+// Get school details
+$stmt = $pdo->prepare("SELECT * FROM schools WHERE id = :id");
+$stmt->bindParam(':id', $schoolId, PDO::PARAM_INT);
+$stmt->execute();
+$school = $stmt->fetch();
+
+// Get counts for the selected school
+$studentCount = 0;
+$classCount = 0;
+$teacherCount = 0;
+$examCount = 0;
+
+try {
+    // Count students
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM students WHERE school_id = :school_id");
+    $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
+    $stmt->execute();
+    $studentCount = $stmt->fetchColumn();
+    
+    // Count classes
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM classes WHERE school_id = :school_id");
+    $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
+    $stmt->execute();
+    $classCount = $stmt->fetchColumn();
+    
+    // Count teachers (users with role 'teacher' and assigned to this school)
+    $stmt = $pdo->prepare("
+        SELECT COUNT(DISTINCT u.id) 
+        FROM users u
+        JOIN teacher_subjects ts ON u.id = ts.teacher_id
+        JOIN classes c ON ts.class_id = c.id
+        WHERE c.school_id = :school_id AND u.role = 'teacher'
+    ");
+    $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
+    $stmt->execute();
+    $teacherCount = $stmt->fetchColumn();
+    
+    // Count exams
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM exams WHERE school_id = :school_id");
+    $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
+    $stmt->execute();
+    $examCount = $stmt->fetchColumn();
+} catch (PDOException $e) {
+    error_log("Error fetching dashboard data: " . $e->getMessage());
 }
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Dashboard</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/styles.css">
+    <title>Admin Dashboard - School MIS</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <h2 class="text-white mb-4">Ishraaq Admin Dashboard</h2>
-        
-        <div class="dashboard-grid">
-            <a href="create_class.php" class="card">
-                <i class="fas fa-chalkboard"></i>
-                <h3>Manage Classes</h3>
-                <p>Create and manage class schedules</p>
-            </a>
-            
-            <a href="create_subject.php" class="card">
-                <i class="fas fa-book"></i>
-                <h3>Manage Subjects</h3>
-                <p>Add and edit subject information</p>
-            </a>
-            
-            <a href="teachers_list.php" class="card">
-                <i class="fas fa-users"></i>
-                <h3>Teachers</h3>
-                <p>View and manage teacher accounts</p>
-            </a>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="dashboard.php">
+                                <i class="fas fa-home"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="schools.php">
+                                <i class="fas fa-school"></i> Schools
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="teachers_list.php">
+                                <i class="fas fa-chalkboard-teacher"></i> Teachers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="students_list.php">
+                                <i class="fas fa-user-graduate"></i> Students
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="create_class.php">
+                                <i class="fas fa-school"></i> Classes
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="create_subject.php">
+                                <i class="fas fa-book"></i> Subjects
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="exams_list.php">
+                                <i class="fas fa-file-alt"></i> Exams
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="../logout.php">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
 
-            <a href="students_list.php" class="card">
-                <i class="fas fa-user-graduate"></i>
-                <h3>Students</h3>
-                <p>View and manage student accounts</p>
-            </a>
-            
-            <a href="exams_list.php" class="card">
-                <i class="fas fa-file-alt"></i>
-                <h3>Exams</h3>
-                <p>Manage exams and report cards</p>
-            </a>
-            
-            <a href="teacher_subjects.php" class="card">
-                <i class="fas fa-chalkboard-teacher"></i>
-                <h3>Teacher Assignments</h3>
-                <p>Assign teachers to subjects</p>
-            </a>
-            
-            <a href="admin_qr_generator.php" class="card">
-                <i class="fas fa-qrcode"></i>
-                <h3>QR Generator</h3>
-                <p>Generate attendance QR codes</p>
-            </a>
-            
-            <a href="report.php" class="card">
-                <i class="fas fa-chart-bar"></i>
-                <h3>Reports</h3>
-                <p>View attendance reports</p>
-            </a>
-            
-            <a href="view_recordings.php" class="card">
-                <i class="fas fa-microphone"></i>
-                <h3>Recordings</h3>
-                <p>Access teacher recordings</p>
-            </a>
-        </div>
-        
-        <div class="mt-4 text-center">
-            <a href="../login.php" class="btn">Logout</a>
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Admin Dashboard</h1>
+                    <?php renderSchoolSelector($pdo, 'dashboard.php'); ?>
+                </div>
+
+                <?php if ($school): ?>
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <?php if (!empty($school['logo_path'])): ?>
+                            <img src="<?php echo '../' . htmlspecialchars($school['logo_path']); ?>" alt="School Logo" style="height: 50px; margin-right: 15px;">
+                        <?php endif; ?>
+                        <div>
+                            <h4 class="mb-0"><?php echo htmlspecialchars($school['name']); ?></h4>
+                            <p class="mb-0"><?php echo htmlspecialchars($school['address']); ?></p>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <div class="row">
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-white bg-primary">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="card-title">Students</h5>
+                                        <h2 class="mb-0"><?php echo $studentCount; ?></h2>
+                                    </div>
+                                    <i class="fas fa-user-graduate fa-3x"></i>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex justify-content-between">
+                                <a href="students_list.php" class="text-white">View Details</a>
+                                <i class="fas fa-arrow-circle-right"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-white bg-success">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="card-title">Classes</h5>
+                                        <h2 class="mb-0"><?php echo $classCount; ?></h2>
+                                    </div>
+                                    <i class="fas fa-school fa-3x"></i>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex justify-content-between">
+                                <a href="create_class.php" class="text-white">View Details</a>
+                                <i class="fas fa-arrow-circle-right"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-white bg-warning">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="card-title">Teachers</h5>
+                                        <h2 class="mb-0"><?php echo $teacherCount; ?></h2>
+                                    </div>
+                                    <i class="fas fa-chalkboard-teacher fa-3x"></i>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex justify-content-between">
+                                <a href="teachers_list.php" class="text-white">View Details</a>
+                                <i class="fas fa-arrow-circle-right"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-white bg-danger">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="card-title">Exams</h5>
+                                        <h2 class="mb-0"><?php echo $examCount; ?></h2>
+                                    </div>
+                                    <i class="fas fa-file-alt fa-3x"></i>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex justify-content-between">
+                                <a href="exams_list.php" class="text-white">View Details</a>
+                                <i class="fas fa-arrow-circle-right"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activities -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5>Recent Activities</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group">
+                            <!-- You can fetch recent activities from the database here -->
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                New student registered
+                                <span class="badge bg-primary rounded-pill">Today</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Exam scores updated
+                                <span class="badge bg-primary rounded-pill">Yesterday</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                New teacher added
+                                <span class="badge bg-primary rounded-pill">3 days ago</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

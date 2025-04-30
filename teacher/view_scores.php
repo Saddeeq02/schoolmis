@@ -151,6 +151,10 @@ foreach ($students as $student) {
             margin-top: 20px;
             margin-bottom: 20px;
         }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
         @media print {
             .no-print {
                 display: none;
@@ -210,6 +214,7 @@ foreach ($students as $student) {
                             <th><?= htmlspecialchars($component['name']) ?> (<?= $component['max_marks'] ?>)</th>
                         <?php endforeach; ?>
                         <th class="total-column">Total (<?= $maxTotal ?>)</th>
+                        <th class="no-print">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -223,6 +228,13 @@ foreach ($students as $student) {
                                 </td>
                             <?php endforeach; ?>
                             <td class="total-column"><?= $totals[$student['id']] ?></td>
+                            <td class="no-print">
+                                <div class="action-buttons">
+                                    <a href="print_result.php?student_id=<?= $student['id'] ?>&exam_id=<?= $examId ?>" class="btn btn-sm" target="_blank">
+                                        <i class="fas fa-print"></i> Print Result
+                                    </a>
+                                </div>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

@@ -51,6 +51,12 @@ $teacherName = $user['name'] ?? 'Teacher';
                 <h3>Exams</h3>
                 <p>Enter and manage student scores</p>
             </a>
+            
+            <a href="print_results.php" class="card">
+                <i class="fas fa-print"></i>
+                <h3>Print Results</h3>
+                <p>Generate and print student report cards</p>
+            </a>
         </div>
 
         <!-- <div class="mt-4">

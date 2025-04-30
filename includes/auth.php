@@ -24,7 +24,28 @@ function setUserSession($user) {
     $_SESSION['role'] = $user['role'];
     $_SESSION['school_name'] = $user['school_name'] ?? 'Default School';
     
+    // Get school_id from the schools table
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT id FROM schools WHERE name = :name");
+    $stmt->bindParam(':name', $_SESSION['school_name'], PDO::PARAM_STR);
+    $stmt->execute();
+    $school = $stmt->fetch();
+    
+    if ($school) {
+        $_SESSION['school_id'] = $school['id'];
+    } else {
+        // If school doesn't exist, use the first school as default
+        $stmt = $pdo->query("SELECT id FROM schools LIMIT 1");
+        $defaultSchool = $stmt->fetch();
+        $_SESSION['school_id'] = $defaultSchool['id'] ?? 1;
+    }
+    
     return true;
+}
+
+// Add a function to get current school ID
+function getCurrentSchoolId() {
+    return $_SESSION['school_id'] ?? 1;
 }
 
 // Get current user's school name

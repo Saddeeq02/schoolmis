@@ -20,6 +20,7 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate inputs
     $address = trim($_POST['address'] ?? '');
+    $borderColor = trim($_POST['border_color'] ?? '#3366cc');
     $logoPath = $schoolDetails['logo_path'] ?? ''; // Default to existing logo path
     
     // Handle logo upload if a file was selected
@@ -52,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // If no errors, save the school details
     if (empty($errors)) {
-        $result = saveSchoolDetails($pdo, $schoolName, $address, $logoPath, $_SESSION['user_id']);
+        $result = saveSchoolDetails($pdo, $schoolName, $address, $logoPath, $borderColor, $_SESSION['user_id']);
         
         if ($result['success']) {
             $success = $result['message'];
@@ -118,6 +119,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <label for="address" class="form-label">School Address</label>
                                 <textarea class="form-control" id="address" name="address" rows="3"><?php echo htmlspecialchars($schoolDetails['address'] ?? ''); ?></textarea>
                                 <small class="text-muted">This address will appear on report cards.</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="border_color" class="form-label">Report Card Border Color</label>
+                                <input type="color" class="form-control form-control-color" id="border_color" name="border_color" value="<?php echo htmlspecialchars($schoolDetails['border_color'] ?? '#3366cc'); ?>">
+                                <small class="text-muted">Select a color for the border of report cards.</small>
                             </div>
                             
                             <div class="mb-3">
