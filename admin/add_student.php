@@ -1,188 +1,133 @@
 <?php
-require_once '../includes/config.php';
+session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
-require_once '../includes/functions.php';
+require_once '../components/school_selector.php';
 
-// Check if user is logged in and is an admin
-if (!isLoggedIn() || !isAdmin()) {
-    header('Location: ../login.php');
-    exit;
+requireAdmin();
+
+// Get current school_id from session or default to first school
+$currentSchoolId = $_SESSION['school_id'] ?? null;
+
+// Handle school selection
+if (isset($_GET['school_id'])) {
+   $currentSchoolId = (int)$_GET['school_id'];
+   $_SESSION['school_id'] = $currentSchoolId;
 }
 
-// Get all classes for the dropdown
-$classesStmt = $pdo->query("SELECT id, class_name FROM classes ORDER BY class_name");
-$classes = $classesStmt->fetchAll();
+// Get classes for the current school
+$classesStmt = $pdo->prepare("SELECT id, class_name FROM classes WHERE school_id = ? ORDER BY class_name ASC");
+$classesStmt->execute([$currentSchoolId]);
+$classes = $classesStmt->fetchAll(PDO::FETCH_ASSOC);
 
-$errors = [];
-$success = false;
-
-// Handle form submission
+// Process form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validate inputs
-    $admissionNumber = trim($_POST['admission_number'] ?? '');
-    $name = trim($_POST['name'] ?? '');
-    $classId = (int)($_POST['class_id'] ?? 0);
+    // Basic validation
+    $required_fields = ['name', 'admission_number'];
+    $errors = [];
     
-    // Validation
-    if (empty($admissionNumber)) {
-        $errors[] = 'Admission number is required';
+    foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+            $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is required';
+        }
     }
     
-    if (empty($name)) {
-        $errors[] = 'Student name is required';
-    }
-    
-    if ($classId <= 0) {
-        $errors[] = 'Please select a valid class';
-    }
-    
-    // If no errors, add the student
     if (empty($errors)) {
-        $result = addStudent($pdo, $admissionNumber, $name, $classId, $_SESSION['user_id']);
+        // Process the form data
+        $name = $_POST['name'];
+        $admission_number = $_POST['admission_number'];
+        $class_id = !empty($_POST['class_id']) ? $_POST['class_id'] : null;
+        $user_id = $_SESSION['user_id']; // Current logged-in admin
         
-        if ($result['success']) {
-            $_SESSION['message'] = $result['message'];
-            $_SESSION['message_type'] = 'success';
-            header('Location: students_list.php');
-            exit;
+        // Check if admission number already exists
+        $checkStmt = $pdo->prepare("SELECT id FROM students WHERE admission_number = ? AND school_id = ?");
+        $checkStmt->execute([$admission_number, $currentSchoolId]);
+        if ($checkStmt->rowCount() > 0) {
+            $errors[] = "Admission number already exists for this school";
         } else {
-            $errors[] = $result['message'];
+            // Insert the new student
+            $stmt = $pdo->prepare("
+                INSERT INTO students 
+                (name, admission_number, class_id, school_id, created_by)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            
+            $stmt->execute([
+                $name, $admission_number, $class_id, $currentSchoolId, $user_id
+            ]);
+            
+            $_SESSION['success_message'] = "Student added successfully!";
+            header("Location: students_list.php?school_id=" . $currentSchoolId);
+            exit();
         }
     }
 }
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Student - School MIS</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+   <title>Add Student</title>
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+   <link rel="stylesheet" href="../assets/styles.css">
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" href="dashboard.php">
-                                <i class="fas fa-home"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="teachers_list.php">
-                                <i class="fas fa-chalkboard-teacher"></i> Teachers
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link active" href="students_list.php">
-                                <i class="fas fa-user-graduate"></i> Students
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="create_class.php">
-                                <i class="fas fa-school"></i> Classes
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="create_subject.php">
-                                <i class="fas fa-book"></i> Subjects
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="admin_qr_generator.php">
-                                <i class="fas fa-qrcode"></i> QR Generator
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="view_recordings.php">
-                                <i class="fas fa-video"></i> Recordings
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="report.php">
-                                <i class="fas fa-chart-bar"></i> Reports
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="../logout.php">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Add New Student</h1>
-                    <a href="students_list.php" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to Students
-                    </a>
-                </div>
-
-                <?php if (!empty($errors)): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <ul class="mb-0">
-                        <?php foreach ($errors as $error): ?>
-                        <li><?php echo $error; ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-                <?php endif; ?>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-body">
-                                <form method="post" action="">
-                                    <div class="mb-3">
-                                        <label for="admission_number" class="form-label">Admission Number</label>
-                                        <input type="text" class="form-control" id="admission_number" name="admission_number" 
-                                               value="<?php echo htmlspecialchars($_POST['admission_number'] ?? ''); ?>" required>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="name" class="form-label">Student Name</label>
-                                        <input type="text" class="form-control" id="name" name="name" 
-                                               value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>" required>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="class_id" class="form-label">Class</label>
-                                        <select class="form-select" id="class_id" name="class_id" required>
-                                            <option value="">Select Class</option>
-                                            <?php foreach ($classes as $class): ?>
-                                            <option value="<?php echo $class['id']; ?>" <?php echo (isset($_POST['class_id']) && $_POST['class_id'] == $class['id']) ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($class['class_name']); ?>
-                                            </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-primary">Add Student</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </div>
-    </div>
-
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+   <div class="container">
+       <h2 class="text-white mb-4">Add New Student</h2>
+       
+       <!-- School Selector Component -->
+       <div class="card mb-4">
+           <?php renderSchoolSelector($pdo, $_SERVER['PHP_SELF'], $currentSchoolId); ?>
+       </div>
+       
+       <!-- Display errors if any -->
+       <?php if (!empty($errors)): ?>
+           <div class="alert alert-danger">
+               <ul style="margin-bottom: 0;">
+                   <?php foreach ($errors as $error): ?>
+                       <li><?= htmlspecialchars($error) ?></li>
+                   <?php endforeach; ?>
+               </ul>
+           </div>
+       <?php endif; ?>
+       
+       <div class="card">
+           <h3>Student Information</h3>
+           <form method="POST" action="" class="mb-4">
+               <input type="hidden" name="school_id" value="<?= $currentSchoolId ?>">
+               
+               <div class="form-group">
+                   <label for="name">Full Name*</label>
+                   <input type="text" id="name" name="name" required value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
+               </div>
+               
+               <div class="form-group">
+                   <label for="admission_number">Admission Number*</label>
+                   <input type="text" id="admission_number" name="admission_number" required value="<?= htmlspecialchars($_POST['admission_number'] ?? '') ?>">
+               </div>
+               
+               <div class="form-group">
+                   <label for="class_id">Class</label>
+                   <select id="class_id" name="class_id">
+                       <option value="">Select Class</option>
+                       <?php foreach ($classes as $class): ?>
+                           <option value="<?= $class['id'] ?>" <?= isset($_POST['class_id']) && $_POST['class_id'] == $class['id'] ? 'selected' : '' ?>>
+                               <?= htmlspecialchars($class['class_name']) ?>
+                           </option>
+                       <?php endforeach; ?>
+                   </select>
+               </div>
+               
+               <div class="form-group mt-4">
+                   <button type="submit" class="btn w-100">Add Student</button>
+               </div>
+           </form>
+       </div>
+       
+       <div class="mt-4 text-center">
+           <a href="students_list.php?school_id=<?= $currentSchoolId ?>" class="btn">Back to Students List</a>
+       </div>
+   </div>
 </body>
 </html>

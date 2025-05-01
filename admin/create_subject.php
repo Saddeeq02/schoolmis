@@ -5,6 +5,23 @@ require_once '../includes/auth.php';
 
 requireAdmin();
 
+// Get all schools for dropdown
+$schoolsStmt = $pdo->query("SELECT id, name FROM schools ORDER BY name ASC");
+$schools = $schoolsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get current school_id from session or default to first school
+$currentSchoolId = $_SESSION['school_id'] ?? null;
+if (!$currentSchoolId && !empty($schools)) {
+    $currentSchoolId = $schools[0]['id'];
+    $_SESSION['school_id'] = $currentSchoolId;
+}
+
+// Handle school selection
+if (isset($_GET['school_id'])) {
+    $currentSchoolId = (int)$_GET['school_id'];
+    $_SESSION['school_id'] = $currentSchoolId;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_subject'])) {
         $subject_id = $_POST['delete_subject'];
@@ -14,23 +31,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $subject_name = $_POST['subject_name'];
         $description = $_POST['description'] ?? null;
         $class_id = $_POST['class_id'];
+        $school_id = $_POST['school_id'] ?? $currentSchoolId;
 
         if (isset($_POST['subject_id'])) {
             $subject_id = $_POST['subject_id'];
-            $stmt = $pdo->prepare("UPDATE subjects SET subject_name = ?, description = ?, class_id = ? WHERE id = ?");
-            $stmt->execute([$subject_name, $description, $class_id, $subject_id]);
+            $stmt = $pdo->prepare("UPDATE subjects SET subject_name = ?, description = ?, class_id = ?, school_id = ? WHERE id = ?");
+            $stmt->execute([$subject_name, $description, $class_id, $school_id, $subject_id]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO subjects (subject_name, description, class_id) VALUES (?, ?, ?)");
-            $stmt->execute([$subject_name, $description, $class_id]);
+            $stmt = $pdo->prepare("INSERT INTO subjects (subject_name, description, class_id, school_id) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$subject_name, $description, $class_id, $school_id]);
         }
     }
 
-    header("Location: create_subjects.php");
+    header("Location: create_subjects.php?school_id=" . $currentSchoolId);
     exit();
 }
 
-$classes = $pdo->query("SELECT id, class_name FROM classes")->fetchAll(PDO::FETCH_ASSOC);
-$subjects = $pdo->query("SELECT subjects.id, subjects.subject_name AS name, subjects.description, classes.class_name AS class_name, subjects.created_at FROM subjects LEFT JOIN classes ON subjects.class_id = classes.id")->fetchAll(PDO::FETCH_ASSOC);
+// Get classes for the current school
+$classesStmt = $pdo->prepare("SELECT id, class_name FROM classes WHERE school_id = ? ORDER BY class_name ASC");
+$classesStmt->execute([$currentSchoolId]);
+$classes = $classesStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get subjects for the current school
+$subjectsStmt = $pdo->prepare("
+    SELECT subjects.id, subjects.subject_name AS name, subjects.description, 
+           classes.class_name AS class_name, subjects.created_at 
+    FROM subjects 
+    LEFT JOIN classes ON subjects.class_id = classes.id
+    WHERE subjects.school_id = ?
+");
+$subjectsStmt->execute([$currentSchoolId]);
+$subjects = $subjectsStmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html>
@@ -39,14 +70,46 @@ $subjects = $pdo->query("SELECT subjects.id, subjects.subject_name AS name, subj
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/styles.css">
+    <style>
+        .school-selector {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .school-selector select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+            margin-left: 10px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h2 class="text-white mb-4">Manage Subjects</h2>
         
+        <!-- School Selector -->
+        <div class="card mb-4">
+            <div class="school-selector">
+                <form method="GET" action="">
+                    <label for="school_id">Select School:</label>
+                    <select id="school_id" name="school_id" onchange="this.form.submit()">
+                        <?php foreach ($schools as $school): ?>
+                            <option value="<?= $school['id'] ?>" <?= $currentSchoolId == $school['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($school['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            </div>
+        </div>
+        
         <div class="card">
             <h3>Add New Subject</h3>
             <form method="POST" action="" class="mb-4">
+                <input type="hidden" name="school_id" value="<?= $currentSchoolId ?>">
+                
                 <div class="form-group">
                     <label for="subjectName">Subject Name</label>
                     <input type="text" id="subjectName" name="subject_name" required placeholder="Enter subject name">
@@ -114,6 +177,7 @@ $subjects = $pdo->query("SELECT subjects.id, subjects.subject_name AS name, subj
                 <h3>Edit Subject</h3>
                 <form id="editForm" method="POST" action="" class="mt-3">
                     <input type="hidden" id="editSubjectId" name="subject_id">
+                    <input type="hidden" name="school_id" value="<?= $currentSchoolId ?>">
                     <div class="form-group">
                         <label for="editSubjectName">Subject Name</label>
                         <input type="text" id="editSubjectName" name="subject_name" required>
@@ -126,7 +190,7 @@ $subjects = $pdo->query("SELECT subjects.id, subjects.subject_name AS name, subj
                         <label for="editClassId">Associated Class</label>
                         <select id="editClassId" name="class_id" required>
                             <?php foreach ($classes as $class): ?>
-                                <option value="<?= $class['id'] ?>"><?= htmlspecialchars($class['name']) ?></option>
+                                <option value="<?= $class['id'] ?>"><?= htmlspecialchars($class['class_name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

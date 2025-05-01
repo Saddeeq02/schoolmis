@@ -1,17 +1,28 @@
+// register.php - Add school selection
 <?php
 session_start();
 include 'includes/db.php';
 include 'includes/functions.php';
+
+// Get all schools for the dropdown
+$stmt = $pdo->query("SELECT id, name FROM schools ORDER BY name ASC");
+$schools = $stmt->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = $_POST['name'];
     $email = $_POST['email'];
     $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
     $role = $_POST['role'];
-    $school_name = $_POST['school_name'];
+    $schoolId = $_POST['school_id'];
+    
+    // Get school name from school_id
+    $stmt = $pdo->prepare("SELECT name FROM schools WHERE id = ?");
+    $stmt->execute([$schoolId]);
+    $school = $stmt->fetch();
+    $schoolName = $school['name'] ?? 'Default School';
 
     $stmt = $pdo->prepare("INSERT INTO users (name, email, password, role, school_name) VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute([$name, $email, $password, $role, $school_name]);
+    $stmt->execute([$name, $email, $password, $role, $schoolName]);
 
     header("Location: login.php");
     exit();
@@ -49,8 +60,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
                 
                 <div class="form-group">
-                    <label for="school_name">School Name</label>
-                    <input type="text" id="school_name" name="school_name" required placeholder="Enter school name">
+                    <label for="school_id">School</label>
+                    <select id="school_id" name="school_id" required>
+                        <option value="">Select School</option>
+                        <?php foreach ($schools as $school): ?>
+                            <option value="<?= $school['id'] ?>"><?= htmlspecialchars($school['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" name="role" required>
+                        <option value="teacher">Teacher</option>
+                        <option value="admin">Admin</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">

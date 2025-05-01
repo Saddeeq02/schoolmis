@@ -1,13 +1,18 @@
 <?php
 // Function to get all students with their class information
-function getAllStudents($pdo) {
+// Function to get all students with their class information
+function getAllStudents($pdo, $schoolId = null) {
+    $schoolId = $schoolId ?? getCurrentSchoolId();
+    
     try {
         $stmt = $pdo->prepare("
             SELECT s.*, c.class_name 
             FROM students s
             JOIN classes c ON s.class_id = c.id
+            WHERE s.school_id = :school_id
             ORDER BY s.name ASC
         ");
+        $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
     } catch (PDOException $e) {
@@ -17,14 +22,19 @@ function getAllStudents($pdo) {
 }
 
 // Function to get students by class ID
-function getStudentsByClass($pdo, $classId) {
+// Function to get students by class ID
+function getStudentsByClass($pdo, $classId, $schoolId = null) {
+    $schoolId = $schoolId ?? getCurrentSchoolId();
+    
     try {
         $stmt = $pdo->prepare("
             SELECT * FROM students 
             WHERE class_id = :class_id 
+            AND school_id = :school_id
             ORDER BY name ASC
         ");
         $stmt->bindParam(':class_id', $classId, PDO::PARAM_INT);
+        $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
     } catch (PDOException $e) {
@@ -175,14 +185,19 @@ function deleteStudent($pdo, $studentId) {
 }
 
 // Function to get all exams with their class information
-function getAllExams($pdo) {
+// Similarly modify other functions like getExamsByClass, getAllExams, etc.
+function getAllExams($pdo, $schoolId = null) {
+    $schoolId = $schoolId ?? getCurrentSchoolId();
+    
     try {
         $stmt = $pdo->prepare("
             SELECT e.*, c.class_name 
             FROM exams e
             JOIN classes c ON e.class_id = c.id
+            WHERE e.school_id = :school_id
             ORDER BY e.created_at DESC
         ");
+        $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();
     } catch (PDOException $e) {
@@ -190,6 +205,7 @@ function getAllExams($pdo) {
         return false;
     }
 }
+
 
 // Function to get exams by class ID
 function getExamsByClass($pdo, $classId) {
@@ -1191,4 +1207,41 @@ function getStudentExamResult($pdo, $studentId, $examId) {
         return false;
     }
 }
+function getAllClasses($pdo, $schoolId = null) {
+    $schoolId = $schoolId ?? getCurrentSchoolId();
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT * FROM classes 
+            WHERE school_id = :school_id
+            ORDER BY class_name ASC
+        ");
+        $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error fetching classes: " . $e->getMessage());
+        return false;
+    }
+}
+
+// Function to get all subjects for a school
+function getAllSubjects($pdo, $schoolId = null) {
+    $schoolId = $schoolId ?? getCurrentSchoolId();
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT * FROM subjects 
+            WHERE school_id = :school_id
+            ORDER BY subject_name ASC
+        ");
+        $stmt->bindParam(':school_id', $schoolId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log("Error fetching subjects: " . $e->getMessage());
+        return false;
+    }
+}
+
 ?>

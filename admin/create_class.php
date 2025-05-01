@@ -5,6 +5,23 @@ require_once '../includes/auth.php';
 
 requireAdmin();
 
+// Get all schools for dropdown
+$schoolsStmt = $pdo->query("SELECT id, name FROM schools ORDER BY name ASC");
+$schools = $schoolsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get current school_id from session or default to first school
+$currentSchoolId = $_SESSION['school_id'] ?? null;
+if (!$currentSchoolId && !empty($schools)) {
+    $currentSchoolId = $schools[0]['id'];
+    $_SESSION['school_id'] = $currentSchoolId;
+}
+
+// Handle school selection
+if (isset($_GET['school_id'])) {
+    $currentSchoolId = (int)$_GET['school_id'];
+    $_SESSION['school_id'] = $currentSchoolId;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_class'])) {
         $class_id = $_POST['delete_class'];
@@ -13,22 +30,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $class_name = $_POST['class_name'];
         $description = $_POST['description'] ?? null;
+        $school_id = $_POST['school_id'] ?? $currentSchoolId;
 
         if (isset($_POST['class_id'])) {
             $class_id = $_POST['class_id'];
-            $stmt = $pdo->prepare("UPDATE classes SET class_name = ?, description = ? WHERE id = ?");
-            $stmt->execute([$class_name, $description, $class_id]);
+            $stmt = $pdo->prepare("UPDATE classes SET class_name = ?, description = ?, school_id = ? WHERE id = ?");
+            $stmt->execute([$class_name, $description, $school_id, $class_id]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO classes (class_name, description) VALUES (?, ?)");
-            $stmt->execute([$class_name, $description]);
+            $stmt = $pdo->prepare("INSERT INTO classes (class_name, description, school_id) VALUES (?, ?, ?)");
+            $stmt->execute([$class_name, $description, $school_id]);
         }
     }
 
-    header("Location: " . $_SERVER['PHP_SELF']);
+    header("Location: " . $_SERVER['PHP_SELF'] . "?school_id=" . $currentSchoolId);
     exit();
 }
 
-$stmt = $pdo->query("SELECT * FROM classes");
+// Get classes for the current school
+$stmt = $pdo->prepare("SELECT * FROM classes WHERE school_id = ? ORDER BY class_name ASC");
+$stmt->execute([$currentSchoolId]);
 $classes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -39,14 +59,46 @@ $classes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/styles.css">
+    <style>
+        .school-selector {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .school-selector select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+            margin-left: 10px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h2 class="text-white mb-4">Manage Classes</h2>
         
+        <!-- School Selector -->
+        <div class="card mb-4">
+            <div class="school-selector">
+                <form method="GET" action="">
+                    <label for="school_id">Select School:</label>
+                    <select id="school_id" name="school_id" onchange="this.form.submit()">
+                        <?php foreach ($schools as $school): ?>
+                            <option value="<?= $school['id'] ?>" <?= $currentSchoolId == $school['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($school['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            </div>
+        </div>
+        
         <div class="card">
             <h3>Add New Class</h3>
             <form method="POST" action="" class="mb-4">
+                <input type="hidden" name="school_id" value="<?= $currentSchoolId ?>">
+                
                 <div class="form-group">
                     <label for="className">Class Name</label>
                     <input type="text" id="className" name="class_name" required placeholder="Enter class name">
@@ -102,6 +154,7 @@ $classes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <h3>Edit Class</h3>
                 <form id="editForm" method="POST" action="" class="mt-3">
                     <input type="hidden" id="editClassId" name="class_id">
+                    <input type="hidden" name="school_id" value="<?= $currentSchoolId ?>">
                     <div class="form-group">
                         <label for="editClassName">Class Name</label>
                         <input type="text" id="editClassName" name="class_name" required>
