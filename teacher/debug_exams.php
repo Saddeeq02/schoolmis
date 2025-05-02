@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../includes/auth.php';
 include '../includes/db.php';
 include '../includes/functions.php';

@@ -1,395 +1,358 @@
 <?php
 require_once 'includes/db.php';
-require_once 'includes/functions.php';
+
+session_start();
 
 $error = '';
-$student = null;
-$exams = [];
-$selectedExam = null;
+$results = [];
+$studentInfo = null;
+$schoolInfo = null;
 
-// Check if admission number is submitted
-if (isset($_POST['admission_number']) && !empty($_POST['admission_number'])) {
-    $admissionNumber = trim($_POST['admission_number']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $admissionNumber = trim($_POST['admission_number'] ?? '');
+    $examId = trim($_POST['exam_id'] ?? '');
     
-    // Get student by admission number
-    $student = getStudentByAdmissionNumber($pdo, $admissionNumber);
-    
-    if (!$student) {
-        $error = "No student found with admission number: $admissionNumber";
+    if (empty($admissionNumber) || empty($examId)) {
+        $error = 'Please provide both admission number and select an exam.';
     } else {
-        // Get exams for the student's class
-        $exams = getExamsByClass($pdo, $student['class_id']);
+        // Get student info
+        $stmt = $pdo->prepare("SELECT s.*, c.class_name FROM students s JOIN classes c ON s.class_id = c.id WHERE s.admission_number = ?");
+        $stmt->execute([$admissionNumber]);
+        $studentInfo = $stmt->fetch();
         
-        // If exam_id is provided, get the selected exam
-        if (isset($_POST['exam_id']) && !empty($_POST['exam_id'])) {
-            $examId = (int)$_POST['exam_id'];
-            $selectedExam = getExamById($pdo, $examId);
-        } elseif (!empty($exams)) {
-            // Default to the most recent exam
-            $selectedExam = $exams[0];
+        if (!$studentInfo) {
+            $error = 'Student not found.';
+        } else {
+            // Get school info
+            $stmt = $pdo->prepare("SELECT * FROM schools WHERE id = ?");
+            $stmt->execute([$studentInfo['school_id']]);
+            $schoolInfo = $stmt->fetch();
+            
+            // Get exam details
+            $stmt = $pdo->prepare("
+                SELECT e.*, c.class_name 
+                FROM exams e 
+                JOIN classes c ON e.class_id = c.id 
+                WHERE e.id = ? AND e.class_id = ?
+            ");
+            $stmt->execute([$examId, $studentInfo['class_id']]);
+            $examInfo = $stmt->fetch();
+            
+            if (!$examInfo) {
+                $error = 'Exam not found for this student.';
+            } else {
+                // Get exam components and scores
+                $stmt = $pdo->prepare("
+                    SELECT s.*, sub.subject_name, ec.name as component_name, ec.max_marks
+                    FROM scores s
+                    JOIN subjects sub ON s.subject_id = sub.id
+                    JOIN exam_components ec ON s.component_id = ec.id
+                    WHERE s.student_id = ? AND s.exam_id = ?
+                    ORDER BY sub.subject_name, ec.display_order
+                ");
+                $stmt->execute([$studentInfo['id'], $examId]);
+                $scores = $stmt->fetchAll();
+                
+                // Process scores by subject
+                $results = [];
+                foreach ($scores as $score) {
+                    if (!isset($results[$score['subject_name']])) {
+                        $results[$score['subject_name']] = [
+                            'components' => [],
+                            'total' => 0,
+                            'max_total' => 0
+                        ];
+                    }
+                    
+                    $results[$score['subject_name']]['components'][] = [
+                        'name' => $score['component_name'],
+                        'score' => $score['score'],
+                        'max_marks' => $score['max_marks']
+                    ];
+                    
+                    $results[$score['subject_name']]['total'] += $score['score'];
+                    $results[$score['subject_name']]['max_total'] += $score['max_marks'];
+                }
+            }
         }
     }
 }
 
-// Get school details - use 'default' if no specific school name is set
-$schoolName = isset($_SESSION['school_name']) ? $_SESSION['school_name'] : 'default';
-$schoolDetails = getSchoolDetails($pdo, $schoolName);
-$borderColor = $schoolDetails['border_color'] ?? '#3366cc';
-
-// Define psychomotor skills and traits
-$psychomotorSkills = ['Handwriting', 'Reading Skills', 'Drawing', 'Crafts', 'Sports'];
-$traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
+// Get available exams
+$exams = [];
+if (isset($studentInfo)) {
+    $stmt = $pdo->prepare("
+        SELECT e.* 
+        FROM exams e 
+        WHERE e.class_id = ? 
+        ORDER BY e.session DESC, e.term DESC
+    ");
+    $stmt->execute([$studentInfo['class_id']]);
+    $exams = $stmt->fetchAll();
+}
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Results</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/clean-styles.css">
     <style>
-        .results-container {
-            max-width: 800px;
-            margin: 0 auto;
-            border: 10px solid <?= $borderColor ?>;
-            padding: 15px;
-            background-color: white;
-            font-size: 11px; /* Smaller base font size to fit more content */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            .container {
+                max-width: 100% !important;
+                padding: 0 !important;
+            }
+            
+            .card {
+                box-shadow: none !important;
+                border: none !important;
+            }
+            
+            .table-responsive {
+                overflow: visible !important;
+            }
+            
+            table {
+                width: 100% !important;
+                page-break-inside: auto !important;
+            }
+            
+            tr {
+                page-break-inside: avoid !important;
+                page-break-after: auto !important;
+            }
         }
-        .school-header {
+        
+        .signature-line {
+            border-top: 1px solid var(--border);
+            padding-top: var(--spacing-sm);
+            margin-top: var(--spacing-lg);
             text-align: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid <?= $borderColor ?>;
+            width: 200px;
         }
-        .school-logo {
-            max-width: 80px;
-            max-height: 80px;
-            margin-bottom: 5px;
-        }
-        .student-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-        .student-info div {
-            margin-bottom: 5px;
-        }
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 10px;
-        }
-        .results-table th, .results-table td {
-            padding: 5px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-        .results-table th {
-            background-color: <?= $borderColor ?> !important;
-            color: white !important;
-            font-weight: bold;
-        }
-        .results-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .grade {
-            font-weight: bold;
-        }
-        .print-button {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 20px;
-        }
-        .comments {
-            margin: 15px 0;
-        }
+        
         .signatures {
             display: flex;
             justify-content: space-between;
-            margin-top: 20px;
+            margin-top: var(--spacing-xl);
+            flex-wrap: wrap;
+            gap: var(--spacing-lg);
         }
-        .signature-line {
-            width: 40%;
-            border-top: 1px solid #333;
-            padding-top: 5px;
-            text-align: center;
+        
+        .school-logo {
+            max-width: 100px;
+            height: auto;
+            margin-bottom: var(--spacing-md);
         }
-        .skills-container {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-            gap: 20px;
+        
+        .grade {
+            font-weight: 600;
+            color: var(--primary);
         }
-        .skills-table {
-            width: 48%;
-            border-collapse: collapse;
-            font-size: 10px;
+        
+        .subject-total {
+            font-weight: 600;
+            background: var(--light);
         }
-        .skills-table th, .skills-table td {
-            padding: 5px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-        .skills-table th {
-            background-color: <?= $borderColor ?> !important;
-            color: white !important;
-            font-weight: bold;
-        }
-        h4, h3, h2 {
-            margin: 5px 0;
-        }
-        @media print {
-            body {
-                background: white;
-                color: black;
-                font-size: 11px;
+        
+        @media (max-width: 768px) {
+            .signatures {
+                justify-content: center;
             }
-            .container {
-                background: white;
-                box-shadow: none;
-                padding: 0;
-                max-width: 100%;
-            }
-            .print-button, form {
-                display: none;
-            }
-            .results-container {
-                border: 10px solid <?= $borderColor ?>;
-                padding: 15px;
-                page-break-after: always;
-            }
-            .results-table th {
-                background-color: <?= $borderColor ?> !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            .skills-table th {
-                background-color: <?= $borderColor ?> !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+            
+            .signature-line {
+                width: 150px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Student Results Portal</h1>
-        
-        <form method="post" action="">
-            <div class="form-group">
-                <label for="admission_number">Enter Admission Number:</label>
-                <input type="text" id="admission_number" name="admission_number" 
-                       value="<?php echo isset($_POST['admission_number']) ? htmlspecialchars($_POST['admission_number']) : ''; ?>" 
-                       required>
-            </div>
+        <div class="card mb-4 no-print">
+            <h1>Student Results</h1>
             
-            <?php if ($student && !empty($exams)): ?>
+            <form method="post" action="" class="d-flex flex-column gap-3">
                 <div class="form-group">
-                    <label for="exam_id">Select Exam:</label>
-                    <select id="exam_id" name="exam_id">
-                        <?php foreach ($exams as $exam): ?>
-                            <option value="<?php echo $exam['id']; ?>" 
-                                <?php echo (isset($_POST['exam_id']) && $_POST['exam_id'] == $exam['id']) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($exam['title'] . ' - ' . $exam['session'] . ' (' . getTerm($exam['term']) . ')'); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            <?php endif; ?>
-            
-            <button type="submit" class="btn">View Results</button>
-        </form>
-        
-        <?php if ($error): ?>
-            <div class="alert alert-error"><?php echo $error; ?></div>
-        <?php endif; ?>
-        
-        <?php if ($student && $selectedExam): ?>
-            <div class="results-container">
-                <div class="school-header">
-                <?php if ($schoolDetails && !empty($schoolDetails['logo_path'])): ?>
-                        <img src="<?= './' . htmlspecialchars($schoolDetails['logo_path']); ?>" alt="School Logo" class="school-logo">
-                    <?php endif; ?>
-                    <img src="<?= './' . htmlspecialchars($schoolDetails['logo_path']); ?>" alt="School Logo" class="school-logo">
-
-                    <h2><?= $schoolDetails ? htmlspecialchars($schoolDetails['school_name']) : 'School Name'; ?></h2>
-                    <p><?= $schoolDetails ? htmlspecialchars($schoolDetails['address']) : ''; ?></p>
-                    <h3>Student Result Sheet</h3>
-
-
+                    <label for="admission_number">Admission Number:</label>
+                    <input type="text" 
+                           id="admission_number" 
+                           name="admission_number" 
+                           value="<?= htmlspecialchars($_POST['admission_number'] ?? '') ?>"
+                           required>
                 </div>
                 
-                <div class="student-info">
-                    <div>
-                        <p><strong>Name:</strong> <?php echo htmlspecialchars($student['name']); ?></p>
-                        <p><strong>Admission No:</strong> <?php echo htmlspecialchars($student['admission_number']); ?></p>
+                <?php if (!empty($exams)): ?>
+                    <div class="form-group">
+                        <label for="exam_id">Select Exam:</label>
+                        <select name="exam_id" id="exam_id" required>
+                            <option value="">Choose an exam...</option>
+                            <?php foreach ($exams as $exam): ?>
+                                <option value="<?= $exam['id'] ?>" 
+                                        <?= (isset($_POST['exam_id']) && $_POST['exam_id'] == $exam['id']) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($exam['title']) ?> 
+                                    (<?= htmlspecialchars($exam['session']) ?>, Term <?= $exam['term'] ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <div>
-                        <p><strong>Class:</strong> <?php 
-                            $class = getClassById($pdo, $student['class_id']);
-                            echo $class ? htmlspecialchars($class['class_name']) : 'Unknown';
-                        ?></p>
-                        <p><strong>Exam:</strong> <?php echo htmlspecialchars($selectedExam['title']); ?></p>
-                        <p><strong>Term:</strong> <?php echo getTerm($selectedExam['term']); ?></p>
-                        <p><strong>Session:</strong> <?php echo htmlspecialchars($selectedExam['session']); ?></p>
-                    </div>
-                </div>
-                
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th>Subject</th>
-                            <?php
-                            // Get exam components
-                            $components = getExamComponents($pdo, $selectedExam['id']);
-                            foreach ($components as $component):
-                                if ($component['is_enabled']):
-                            ?>
-                                <th><?php echo htmlspecialchars($component['name']); ?> (<?php echo $component['max_marks']; ?>)</th>
-                            <?php 
-                                endif;
-                            endforeach; 
-                            ?>
-                            <th>Total</th>
-                            <th>Grade</th>
-                            <th>Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        // Get subjects for the student's class
-                        $subjects = getSubjectsByClass($pdo, $student['class_id']);
-                        $totalMarks = 0;
-                        $totalMaxMarks = 0;
-                        $subjectCount = 0;
-                        
-                        foreach ($subjects as $subject):
-                            $subjectTotal = 0;
-                            $subjectMaxTotal = 0;
-                        ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($subject['subject_name']); ?></td>
-                                <?php
-                                foreach ($components as $component):
-                                    if ($component['is_enabled']):
-                                        $score = getStudentComponentScore($pdo, $student['id'], $selectedExam['id'], $subject['id'], $component['id']);
-                                        $subjectTotal += $score;
-                                        $subjectMaxTotal += $component['max_marks'];
-                                ?>
-                                    <td><?php echo $score; ?></td>
-                                <?php 
-                                    endif;
-                                endforeach; 
-                                
-                                // Calculate grade and remarks
-                                $grade = calculateGrade($subjectTotal, $subjectMaxTotal);
-                                $remarks = getRemarks($grade);
-                                
-                                $totalMarks += $subjectTotal;
-                                $totalMaxMarks += $subjectMaxTotal;
-                                $subjectCount++;
-                                ?>
-                                <td><strong><?php echo $subjectTotal; ?>/<?php echo $subjectMaxTotal; ?></strong></td>
-                                <td class="grade"><?php echo $grade; ?></td>
-                                <td><?php echo $remarks; ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th>Overall Total</th>
-                            <?php 
-                            foreach ($components as $component):
-                                if ($component['is_enabled']):
-                            ?>
-                                <th></th>
-                            <?php 
-                                endif;
-                            endforeach; 
-                            ?>
-                            <th><?php echo $totalMarks; ?>/<?php echo $totalMaxMarks; ?> (<?php echo round(($totalMarks / $totalMaxMarks) * 100, 1); ?>%)</th>
-                            <th><?php echo calculateGrade($totalMarks, $totalMaxMarks); ?></th>
-                            <th></th>
-                        </tr>
-                    </tfoot>
-                </table>
+                <?php endif; ?>
                 
                 <div>
-                    <h4>Position in Class: <?php echo getStudentPosition($pdo, $student['id'], $selectedExam['id'], $student['class_id']); ?></h4>
-                    
-                    <div class="skills-container">
-                        <table class="skills-table">
-                            <thead>
-                                <tr>
-                                    <th colspan="2">Psychomotor Skills</th>
-                                </tr>
-                                <tr>
-                                    <th>Skill</th>
-                                    <th>Rating (out of 5)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($psychomotorSkills as $skill): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($skill) ?></td>
-                                    <td>_____/5</td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                        
-                        <table class="skills-table">
-                            <thead>
-                                <tr>
-                                    <th colspan="2">Character Traits</th>
-                                </tr>
-                                <tr>
-                                    <th>Trait</th>
-                                    <th>Rating (out of 5)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($traits as $trait): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($trait) ?></td>
-                                    <td>_____/5</td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="comments">
+                    <button type="submit" class="btn btn-lg">
+                        <i class="fas fa-search"></i> View Results
+                    </button>
+                </div>
+            </form>
+            
+            <?php if ($error): ?>
+                <div class="alert alert-danger mt-3">
+                    <?= htmlspecialchars($error) ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <?php if ($studentInfo && !empty($results)): ?>
+            <div class="card" id="results">
+                <!-- School Header -->
+                <div class="text-center mb-4">
+                    <?php if ($schoolInfo['logo_path']): ?>
+                        <img src="<?= htmlspecialchars($schoolInfo['logo_path']) ?>" 
+                             alt="School Logo" 
+                             class="school-logo">
+                    <?php endif; ?>
+                    <h2><?= htmlspecialchars($schoolInfo['name']) ?></h2>
+                    <p><?= htmlspecialchars($schoolInfo['address']) ?></p>
+                </div>
+                
+                <!-- Student Info -->
+                <div class="card mb-4">
+                    <div class="d-flex flex-wrap gap-3">
                         <div>
-                            <h4>Class Teacher's Comment:</h4>
-                            <p>_______________________________________________________________________</p>
+                            <strong>Student Name:</strong>
+                            <?= htmlspecialchars($studentInfo['name']) ?>
                         </div>
-                        
                         <div>
-                            <h4>Principal's Comment:</h4>
-                            <p>_______________________________________________________________________</p>
+                            <strong>Admission No:</strong>
+                            <?= htmlspecialchars($studentInfo['admission_number']) ?>
                         </div>
-                    </div>
-                    
-                    <div class="signatures">
-                        <div class="signature-line">
-                            <p>Class Teacher</p>
+                        <div>
+                            <strong>Class:</strong>
+                            <?= htmlspecialchars($studentInfo['class_name']) ?>
                         </div>
-                        <div class="signature-line">
-                            <p>Principal</p>
+                        <div>
+                            <strong>Session:</strong>
+                            <?= htmlspecialchars($examInfo['session']) ?>
+                        </div>
+                        <div>
+                            <strong>Term:</strong>
+                            <?= htmlspecialchars($examInfo['term']) ?>
                         </div>
                     </div>
                 </div>
                 
-                <button class="btn print-button" onclick="window.print()">Print Result</button>
+                <!-- Results Table -->
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Component</th>
+                                <th>Score</th>
+                                <th>Max Marks</th>
+                                <th>Percentage</th>
+                                <th>Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($results as $subject => $data): ?>
+                                <?php foreach ($data['components'] as $index => $component): ?>
+                                    <tr>
+                                        <?php if ($index === 0): ?>
+                                            <td rowspan="<?= count($data['components']) ?>">
+                                                <?= htmlspecialchars($subject) ?>
+                                            </td>
+                                        <?php endif; ?>
+                                        <td><?= htmlspecialchars($component['name']) ?></td>
+                                        <td><?= number_format($component['score'], 2) ?></td>
+                                        <td><?= number_format($component['max_marks'], 2) ?></td>
+                                        <td>
+                                            <?= number_format(($component['score'] / $component['max_marks']) * 100, 1) ?>%
+                                        </td>
+                                        <td class="grade">
+                                            <?= getGrade(($component['score'] / $component['max_marks']) * 100) ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                
+                                <!-- Subject Total -->
+                                <tr class="subject-total">
+                                    <td colspan="2">Total</td>
+                                    <td><?= number_format($data['total'], 2) ?></td>
+                                    <td><?= number_format($data['max_total'], 2) ?></td>
+                                    <td>
+                                        <?= number_format(($data['total'] / $data['max_total']) * 100, 1) ?>%
+                                    </td>
+                                    <td class="grade">
+                                        <?= getGrade(($data['total'] / $data['max_total']) * 100) ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Signatures -->
+                <div class="signatures">
+                    <div class="signature-line">
+                        <div>Class Teacher</div>
+                    </div>
+                    <div class="signature-line">
+                        <div>Principal</div>
+                    </div>
+                    <div class="signature-line">
+                        <div>Parent/Guardian</div>
+                    </div>
+                </div>
+                
+                <!-- Print Button -->
+                <div class="text-center mt-4 no-print">
+                    <button onclick="window.print()" class="btn btn-lg">
+                        <i class="fas fa-print"></i> Print Result
+                    </button>
+                </div>
             </div>
         <?php endif; ?>
+        
+        <!-- Back Link -->
+        <div class="text-center mt-4 no-print">
+            <a href="index.php" class="btn">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
     </div>
+
+    <?php
+    function getGrade($percentage) {
+        if ($percentage >= 90) return 'A+';
+        if ($percentage >= 80) return 'A';
+        if ($percentage >= 70) return 'B';
+        if ($percentage >= 60) return 'C';
+        if ($percentage >= 50) return 'D';
+        return 'F';
+    }
+    ?>
 </body>
 </html>

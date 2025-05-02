@@ -1207,6 +1207,7 @@ function getStudentExamResult($pdo, $studentId, $examId) {
         return false;
     }
 }
+
 function getAllClasses($pdo, $schoolId = null) {
     $schoolId = $schoolId ?? getCurrentSchoolId();
     
@@ -1240,6 +1241,22 @@ function getAllSubjects($pdo, $schoolId = null) {
         return $stmt->fetchAll();
     } catch (PDOException $e) {
         error_log("Error fetching subjects: " . $e->getMessage());
+        return false;
+    }
+}
+
+function checkExamHasScores($pdo, $examId) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM student_scores 
+            WHERE exam_id = :exam_id
+        ");
+        $stmt->bindParam(':exam_id', $examId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchColumn() > 0;
+    } catch (PDOException $e) {
+        error_log("Error checking exam scores: " . $e->getMessage());
         return false;
     }
 }

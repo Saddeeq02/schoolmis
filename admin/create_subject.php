@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    header("Location: create_subjects.php?school_id=" . $currentSchoolId);
+    header("Location: create_subject.php?school_id=" . $currentSchoolId);
     exit();
 }
 
@@ -69,21 +69,8 @@ $subjects = $subjectsStmt->fetchAll(PDO::FETCH_ASSOC);
     <title>Manage Subjects</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/styles.css">
-    <style>
-        .school-selector {
-            margin-bottom: 20px;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-        }
-        .school-selector select {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ced4da;
-            margin-left: 10px;
-        }
-    </style>
+    <link rel="stylesheet" href="../assets/clean-styles.css">
+   
 </head>
 <body>
     <div class="container">
