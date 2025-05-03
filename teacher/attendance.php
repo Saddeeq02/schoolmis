@@ -103,7 +103,7 @@ ob_end_clean();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
-    <!-- <style>
+    <style>
         :root {
             --primary-color: #4A90E2;
             --secondary-color: #67B26F;
@@ -261,7 +261,7 @@ ob_end_clean();
                 max-height: 50vh;
             }
         }
-    </style> -->
+    </style>
 </head>
 <body>
     <div class="container">

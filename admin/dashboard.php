@@ -316,6 +316,24 @@ try {
                 </a>
             </div>
             <div class="col-6 col-md-3">
+                <a href="promote_students.php" class="menu-card d-flex flex-column align-items-center p-3">
+                    <i class="fas fa-graduation-cap menu-icon text-success"></i>
+                    <span>Student Promotion</span>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="archive_exam.php" class="menu-card d-flex flex-column align-items-center p-3">
+                    <i class="fas fa-archive menu-icon text-warning"></i>
+                    <span>Archive Exams</span>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="clean_records.php" class="menu-card d-flex flex-column align-items-center p-3">
+                    <i class="fas fa-broom menu-icon text-danger"></i>
+                    <span>Clean Records</span>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
                 <a href="school_details.php" class="menu-card d-flex flex-column align-items-center p-3">
                     <i class="fas fa-cog menu-icon text-secondary"></i>
                     <span>Settings</span>

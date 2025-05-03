@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../includes/auth.php';
 include '../includes/db.php';
 
@@ -31,11 +30,11 @@ try {
     <title>View Recordings</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/styles.css">
+    <link rel="stylesheet" href="../assets/clean-styles.css">
 </head>
 <body>
     <div class="container">
-        <h2 class="text-white mb-4">Class Recordings</h2>
+        <h2 class="text-dark mb-4">Class Recordings</h2>
         
         <div class="filters">
             <div class="filter-group">

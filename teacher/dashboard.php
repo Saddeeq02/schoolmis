@@ -73,7 +73,7 @@ $examCount = $stmt->fetch()['exam_count'];
     <link rel="manifest" href="../manifest.json">
     <meta name="theme-color" content="#4A90E2">
     <script src="../assets/scripts.js"></script>
-    <title>Teacher Dashboard - <?= htmlspecialchars($school['school_name'] ?? 'School MIS') ?></title>
+    <title>Teacher Dashboard - <?= htmlspecialchars($school['name'] ?? 'School MIS') ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -382,7 +382,7 @@ $examCount = $stmt->fetch()['exam_count'];
         <div class="header">
             <div>
                 <h1>Teacher Dashboard</h1>
-                <p><?= htmlspecialchars($school['school_name'] ?? 'School') ?></p>
+                <p><?= htmlspecialchars($school['name'] ?? 'School') ?></p>
             </div>
             <div class="user-info">
                 <span class="user-name"><?= htmlspecialchars($teacherName) ?></span>
@@ -396,7 +396,7 @@ $examCount = $stmt->fetch()['exam_count'];
         <!-- Welcome Message -->
         <div class="welcome-message">
             <h2>Welcome back, <?= htmlspecialchars(explode(' ', $teacherName)[0]) ?>!</h2>
-            <p>Here's what's happening with your classes today.</p>
+            <p>Get your tasks done today.</p>
         </div>
 
         <!-- Stats Grid -->
