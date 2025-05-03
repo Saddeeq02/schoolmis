@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../includes/auth.php';
 include '../includes/db.php';
 include '../includes/functions.php';
@@ -31,6 +30,13 @@ if (!$student || !$exam) {
     exit();
 }
 
+// Get school details from schools table
+$stmt = $pdo->prepare("SELECT * FROM schools WHERE id = ?");
+$stmt->execute([$student['school_id']]);
+$schoolDetails = $stmt->fetch();
+
+$borderColor = $schoolDetails['border_color'] ?? '#3366cc';
+
 // Get result data
 $result = getStudentExamResult($pdo, $studentId, $examId);
 
@@ -41,16 +47,10 @@ if (!$result) {
     exit();
 }
 
-// Get school details
-$schoolName = $_SESSION['school_name'] ?? 'default';
-$schoolDetails = getSchoolDetails($pdo, $schoolName);
-$borderColor = $schoolDetails['border_color'] ?? '#3366cc';
-
 // Define psychomotor skills and traits
 $psychomotorSkills = ['Handwriting', 'Reading Skills', 'Drawing', 'Crafts', 'Sports'];
 $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,147 +58,188 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Result - <?= htmlspecialchars($student['name']) ?></title>
     <style>
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+        
         body {
             font-family: Arial, sans-serif;
-            line-height: 1.4;
+            line-height: 1.3;
             color: #333;
-            background-color: #f9f9f9;
-            padding: 0;
+            background-color: #fff;
             margin: 0;
-            font-size: 11px; /* Smaller base font size to fit more content */
+            font-size: 9pt;
         }
+
         .report-card {
-            max-width: 800px;
-            margin: 20px auto;
-            border: 10px solid <?= $borderColor ?>;
+            width: 210mm;
+            height: 297mm; /* Fixed height to A4 */
+            margin: 0 auto;
+            border: 12px solid <?= $borderColor ?>;
             background-color: white;
-            padding: 15px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 10mm;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden; /* Prevent content overflow */
         }
+
         .school-header {
             text-align: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid <?= $borderColor ?>;
+            margin-bottom: 5mm;
+            padding-bottom: 2mm;
+            border-bottom: 1px solid <?= $borderColor ?>;
         }
+
+        .school-header h2 {
+            margin: 1mm 0;
+            font-size: 14pt;
+        }
+
+        .school-header h3 {
+            margin: 1mm 0;
+            font-size: 12pt;
+        }
+
+        .school-header p {
+            margin: 1mm 0;
+            font-size: 9pt;
+        }
+
         .school-logo {
-            max-width: 80px;
-            max-height: 80px;
-            margin-bottom: 5px;
+            max-width: 45px;
+            max-height: 45px;
+            margin-bottom: 2mm;
         }
+
         .student-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2mm;
+            margin-bottom: 4mm;
+            font-size: 9pt;
         }
-        .student-info div {
-            margin-bottom: 5px;
+
+        .student-info p {
+            margin: 0.5mm 0;
         }
+
         .results-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 10px;
+            margin-bottom: 3mm;
+            font-size: 9pt;
         }
+
         .results-table th, .results-table td {
-            padding: 5px;
-            border: 1px solid #ddd;
+            padding: 1mm;
+            border: 0.5pt solid #ddd;
             text-align: left;
         }
+
         .results-table th {
             background-color: <?= $borderColor ?> !important;
             color: white !important;
             font-weight: bold;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
-        .results-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .grade {
-            font-weight: bold;
-        }
-        .summary {
-            margin-top: 15px;
-            padding-top: 5px;
-            border-top: 1px solid #ddd;
-        }
-        .comments {
-            margin: 15px 0;
-        }
-        .signatures {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        .signature-line {
-            width: 40%;
-            border-top: 1px solid #333;
-            padding-top: 5px;
-            text-align: center;
-        }
+
         .skills-container {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-            gap: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3mm;
+            margin: 3mm 0;
         }
+
         .skills-table {
-            width: 48%;
+            width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
+            font-size: 8.5pt;
         }
+
         .skills-table th, .skills-table td {
-            padding: 5px;
-            border: 1px solid #ddd;
+            padding: 1mm;
+            border: 0.5pt solid #ddd;
             text-align: left;
         }
+
         .skills-table th {
             background-color: <?= $borderColor ?> !important;
             color: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .comments {
+            margin: 3mm 0;
+            font-size: 9pt;
+            margin-bottom: 25mm; /* Reduced space before signatures */
+        }
+
+        .comments h4 {
+            margin: 1mm 0;
+            font-size: 9pt;
             font-weight: bold;
         }
-        h4, h3, h2 {
-            margin: 5px 0;
+
+        .comment-line {
+            border-bottom: 0.5pt solid #ddd;
+            height: 6mm;
+            margin-bottom: 3mm;
         }
+
+        .signatures {
+            position: absolute;
+            bottom: 6mm;
+            left: 10mm;
+            right: 10mm;
+            display: flex;
+            justify-content: space-between;
+            font-size: 8.5pt;
+        }
+
+        .signature-line {
+            width: 50mm;
+            text-align: center;
+        }
+
+        .signature-line .line {
+            width: 100%;
+            border-bottom: 0.5pt solid #333;
+            margin-bottom: 1mm;
+            height: 10mm;
+        }
+
+        .signature-line p {
+            margin: 0;
+        }
+
         @media print {
             body {
                 background: none;
-                font-size: 11px;
             }
             .report-card {
                 margin: 0;
-                border: 10px solid <?= $borderColor ?>;
-                box-shadow: none;
-                page-break-after: always;
+                border: 12px solid <?= $borderColor ?>;
+                height: 297mm;
             }
             .print-button {
                 display: none;
-            }
-            .results-table th {
-                background-color: <?= $borderColor ?> !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            .skills-table th {
-                background-color: <?= $borderColor ?> !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
             }
         }
     </style>
 </head>
 <body>
     <div class="report-card">
-        <button onclick="window.print()" class="print-button" style="float:right;">Print Report Card</button>
+        <button onclick="window.print()" class="print-button" style="position: fixed; top: 10px; right: 10px; font-size: 8pt; padding: 2px 5px;">Print</button>
         
         <div class="school-header">
             <?php if ($schoolDetails && !empty($schoolDetails['logo_path'])): ?>
                 <img src="<?= '../' . htmlspecialchars($schoolDetails['logo_path']) ?>" alt="School Logo" class="school-logo">
             <?php endif; ?>
             
-            <h2><?= $schoolDetails ? htmlspecialchars($schoolDetails['school_name']) : 'School MIS' ?></h2>
+            <h2><?= $schoolDetails ? htmlspecialchars($schoolDetails['name']) : 'School MIS' ?></h2>
             <p><?= $schoolDetails ? htmlspecialchars($schoolDetails['address']) : '' ?></p>
             <h3>Student Report Card</h3>
         </div>
@@ -210,12 +251,11 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
             </div>
             <div>
                 <p><strong>Class:</strong> <?= htmlspecialchars($result['class']['class_name']) ?></p>
-                <p><strong>Exam:</strong> <?= htmlspecialchars($exam['title']) ?></p>
                 <p><strong>Term:</strong> <?= getTerm($exam['term']) ?></p>
                 <p><strong>Session:</strong> <?= htmlspecialchars($exam['session']) ?></p>
             </div>
         </div>
-        
+
         <table class="results-table">
             <thead>
                 <tr>
@@ -224,7 +264,7 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
                     foreach ($result['components'] as $component):
                         if ($component['is_enabled']):
                     ?>
-                        <th><?= htmlspecialchars($component['name']) ?> (<?= $component['max_marks'] ?>)</th>
+                        <th><?= htmlspecialchars($component['name']) ?><br>(<?= $component['max_marks'] ?>)</th>
                     <?php 
                         endif;
                     endforeach; 
@@ -273,10 +313,6 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
             </tfoot>
         </table>
         
-        <div class="summary">
-            <h4>Position in Class: <?= $result['position'] ?></h4>
-        </div>
-        
         <div class="skills-container">
             <table class="skills-table">
                 <thead>
@@ -322,21 +358,27 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
         <div class="comments">
             <div>
                 <h4>Class Teacher's Comment:</h4>
-                <p>_______________________________________________________________________</p>
+                <div class="comment-line"></div>
             </div>
             
             <div>
                 <h4>Principal's Comment:</h4>
-                <p>_______________________________________________________________________</p>
+                <div class="comment-line"></div>
             </div>
         </div>
         
         <div class="signatures">
             <div class="signature-line">
-                <p>Class Teacher</p>
+                <div class="line"></div>
+                <p>Class Teacher's Signature</p>
             </div>
             <div class="signature-line">
-                <p>Principal</p>
+                <div class="line"></div>
+                <p>Principal's Signature</p>
+            </div>
+            <div class="signature-line">
+                <div class="line"></div>
+                <p>Parent's Signature</p>
             </div>
         </div>
     </div>

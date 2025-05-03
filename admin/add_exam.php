@@ -10,8 +10,11 @@ if (!isLoggedIn() || !isAdmin()) {
     exit;
 }
 
-// Get all classes for the dropdown
-$classesStmt = $pdo->query("SELECT id, class_name FROM classes ORDER BY class_name");
+$schoolId = $_SESSION['school_id'] ?? 1;
+
+// Get all classes for the current school
+$classesStmt = $pdo->prepare("SELECT id, class_name FROM classes WHERE school_id = ? ORDER BY class_name");
+$classesStmt->execute([$schoolId]);
 $classes = $classesStmt->fetchAll();
 
 $errors = [];
@@ -24,6 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $session = trim($_POST['session'] ?? '');
     $term = (int)($_POST['term'] ?? 0);
     $classId = (int)($_POST['class_id'] ?? 0);
+    
+    // Additional validation to ensure class belongs to current school
+    $stmt = $pdo->prepare("SELECT id FROM classes WHERE id = ? AND school_id = ?");
+    $stmt->execute([$classId, $schoolId]);
+    $validClass = $stmt->fetchColumn();
     
     // Validation
     if (empty($title)) {
@@ -38,21 +46,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Please select a valid term (1, 2, or 3)';
     }
     
-    if ($classId <= 0) {
+    if (!$validClass) {
         $errors[] = 'Please select a valid class';
     }
     
     // If no errors, add the exam
     if (empty($errors)) {
-        $result = addExam($pdo, $title, $session, $term, $classId, $_SESSION['user_id']);
-        
-        if ($result['success']) {
-            $_SESSION['message'] = $result['message'];
+        try {
+            // Start transaction
+            $pdo->beginTransaction();
+            
+            // Insert exam with school_id
+            $stmt = $pdo->prepare("
+                INSERT INTO exams (school_id, title, session, term, class_id, created_by) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([$schoolId, $title, $session, $term, $classId, $_SESSION['user_id']]);
+            $examId = $pdo->lastInsertId();
+            
+            // Default exam components
+            $components = [
+                ['1st CA', 15, 1],
+                ['2nd CA', 15, 2],
+                ['Assessment', 10, 3],
+                ['Exam', 60, 4]
+            ];
+            
+            $stmt = $pdo->prepare("
+                INSERT INTO exam_components (exam_id, name, max_marks, is_enabled, display_order) 
+                VALUES (?, ?, ?, 1, ?)
+            ");
+            
+            foreach ($components as $component) {
+                $stmt->execute([$examId, $component[0], $component[1], $component[2]]);
+            }
+            
+            $pdo->commit();
+            
+            $_SESSION['message'] = 'Exam created successfully';
             $_SESSION['message_type'] = 'success';
-            header('Location: exam_components.php?id=' . $result['id']);
+            header('Location: exam_components.php?id=' . $examId);
             exit;
-        } else {
-            $errors[] = $result['message'];
+            
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            $errors[] = 'Error creating exam. Please try again.';
         }
     }
 }
@@ -64,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Exam - School MIS</title>
-    <link rel="stylesheet" href="../assets/styles.css">
+    <link rel="stylesheet" href="../assets/clean-styles.css">
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->

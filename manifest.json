@@ -1,0 +1,86 @@
+{
+    "name": "School Management Information System",
+    "short_name": "SchoolMIS",
+    "description": "School Management System for Teachers and Administrators",
+    "start_url": "/teacher/dashboard.php",
+    "display": "standalone",
+    "background_color": "#4A90E2",
+    "theme_color": "#4A90E2",
+    "orientation": "portrait",
+    "scope": "/",
+    "icons": [
+        {
+            "src": "/assets/icons/icon-72x72.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/icons/icon-96x96.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/icons/icon-128x128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/icons/icon-144x144.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/icons/icon-152x152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/icons/icon-384x384.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/assets/icons/maskable-icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Take Attendance",
+            "short_name": "Attendance",
+            "description": "Scan QR code for attendance",
+            "url": "/teacher/attendance.php",
+            "icons": [{ "src": "/assets/icons/attendance.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Record Audio",
+            "short_name": "Record",
+            "description": "Record an audio lesson",
+            "url": "/teacher/record_audio.php",
+            "icons": [{ "src": "/assets/icons/record.png", "sizes": "192x192" }]
+        }
+    ],
+    "categories": ["education", "productivity"],
+    "lang": "en",
+    "dir": "ltr"
+}

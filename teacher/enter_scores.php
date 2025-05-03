@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../includes/auth.php';
 include '../includes/db.php';
 include '../includes/functions.php';
@@ -168,51 +167,132 @@ foreach ($students as $student) {
             padding: 8px;
             border-radius: var(--radius);
             border: 1px solid var(--border);
+            transition: all 0.3s ease;
         }
         
         .invalid-score {
             border-color: var(--danger);
             background-color: var(--light);
         }
+
+        .score-saved {
+            border-color: var(--success);
+            animation: flash-success 1s;
+        }
+
+        @keyframes flash-success {
+            0% { box-shadow: 0 0 0 2px var(--success); }
+            100% { box-shadow: none; }
+        }
+        
+        .sticky-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 1rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .sticky-actions .btn {
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        .container {
+            padding-bottom: 80px; /* Space for sticky buttons */
+        }
+
+        .student-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .student-card .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .student-scores {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .score-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .score-group label {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .score-group small {
+            color: var(--text-light);
+        }
+
+        .save-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .save-indicator.visible {
+            opacity: 1;
+        }
+
+        .save-indicator i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
         
         @media (max-width: 768px) {
-            .table-responsive {
-                margin: 0 -1rem;
+            .student-card {
+                margin: 0.5rem -1rem;
+                border-radius: 0;
             }
-            
-            table {
-                display: block;
-            }
-            
-            thead {
-                display: none;
-            }
-            
-            tbody tr {
-                display: block;
-                margin-bottom: 1rem;
-                border: 1px solid var(--border);
-                border-radius: var(--radius);
-                padding: 1rem;
-                background: var(--white);
-            }
-            
-            td {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0.5rem 0;
-                border: none;
-            }
-            
-            td::before {
-                content: attr(data-label);
-                font-weight: 600;
-                margin-right: 1rem;
-            }
-            
+
             .score-input {
-                width: 100px;
+                width: 100%;
+            }
+
+            .sticky-actions {
+                padding: 0.75rem;
+            }
+
+            .sticky-actions .btn {
+                padding: 0.75rem;
+                font-size: 0.9rem;
+            }
+
+            .btn i {
+                margin-right: 0;
+            }
+
+            .btn span {
+                display: none;
             }
         }
     </style>
@@ -264,61 +344,137 @@ foreach ($students as $student) {
         
         <!-- Scores Form -->
         <form method="post" action="" id="scoresForm">
-            <div class="card">
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Admission No.</th>
-                                <th>Student Name</th>
-                                <?php foreach ($components as $component): ?>
-                                    <th>
-                                        <?= htmlspecialchars($component['name']) ?>
-                                        <small class="d-block text-light">Max: <?= $component['max_marks'] ?></small>
-                                    </th>
-                                <?php endforeach; ?>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($students as $student): ?>
-                                <tr>
-                                    <td data-label="Admission No."><?= htmlspecialchars($student['admission_number']) ?></td>
-                                    <td data-label="Name"><?= htmlspecialchars($student['name']) ?></td>
-                                    <?php foreach ($components as $component): ?>
-                                        <td data-label="<?= htmlspecialchars($component['name']) ?>">
-                                            <input type="number" 
-                                                   name="scores[<?= $student['id'] ?>][<?= $component['id'] ?>]" 
-                                                   value="<?= $existingScores[$student['id']][$component['id']] ?>"
-                                                   class="score-input"
-                                                   min="0"
-                                                   max="<?= $component['max_marks'] ?>"
-                                                   step="0.01"
-                                                   required>
-                                        </td>
-                                    <?php endforeach; ?>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+            <?php foreach ($students as $student): ?>
+                <div class="student-card">
+                    <div class="header">
+                        <div>
+                            <strong><?= htmlspecialchars($student['name']) ?></strong>
+                            <small class="d-block text-light"><?= htmlspecialchars($student['admission_number']) ?></small>
+                        </div>
+                        <div class="save-indicator" id="indicator-<?= $student['id'] ?>">
+                            <i class="fas fa-spinner"></i> Saving...
+                        </div>
+                    </div>
+                    
+                    <div class="student-scores">
+                        <?php foreach ($components as $component): ?>
+                            <div class="score-group">
+                                <label><?= htmlspecialchars($component['name']) ?></label>
+                                <input type="number" 
+                                       name="scores[<?= $student['id'] ?>][<?= $component['id'] ?>]" 
+                                       value="<?= $existingScores[$student['id']][$component['id']] ?>"
+                                       class="score-input"
+                                       data-student="<?= $student['id'] ?>"
+                                       data-component="<?= $component['id'] ?>"
+                                       min="0"
+                                       max="<?= $component['max_marks'] ?>"
+                                       step="0.01"
+                                       required>
+                                <small>Max: <?= $component['max_marks'] ?></small>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="d-flex flex-wrap gap-2 justify-content-between mt-4">
-                <button type="submit" class="btn btn-lg">
-                    <i class="fas fa-save"></i> Save Scores
-                </button>
-                <a href="view_scores.php?exam_id=<?= $examId ?>&class_id=<?= $classId ?>&subject_id=<?= $selectedSubjectId ?>" 
-                   class="btn btn-lg">
-                    <i class="fas fa-eye"></i> View Scores
-                </a>
-                <a href="exams_list.php" class="btn btn-lg">
-                    <i class="fas fa-arrow-left"></i> Back to Exams
-                </a>
-            </div>
+            <?php endforeach; ?>
         </form>
+
+        <!-- Sticky Action Buttons -->
+        <div class="sticky-actions">
+            <a href="exams_list.php" class="btn">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back</span>
+            </a>
+            <button type="submit" form="scoresForm" class="btn btn-primary">
+                <i class="fas fa-save"></i>
+                <span>Save All</span>
+            </button>
+            <a href="view_scores.php?exam_id=<?= $examId ?>&class_id=<?= $classId ?>&subject_id=<?= $selectedSubjectId ?>" 
+               class="btn">
+                <i class="fas fa-eye"></i>
+                <span>View</span>
+            </a>
+        </div>
     </div>
 
     <script>
+    // Debounce function to limit API calls
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    // Save score for a single student and component
+    async function saveScore(input) {
+        const studentId = input.dataset.student;
+        const componentId = input.dataset.component;
+        const score = input.value;
+        const indicator = document.getElementById(`indicator-${studentId}`);
+        
+        try {
+            // Show saving indicator
+            indicator.classList.add('visible');
+            
+            const response = await fetch('save_score.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    exam_id: <?= $examId ?>,
+                    subject_id: <?= $selectedSubjectId ?>,
+                    component_id: componentId,
+                    score: score
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                input.classList.add('score-saved');
+                setTimeout(() => input.classList.remove('score-saved'), 1000);
+            } else {
+                input.classList.add('invalid-score');
+                alert(result.message || 'Error saving score');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            input.classList.add('invalid-score');
+            alert('Failed to save score. Please try again.');
+        } finally {
+            // Hide saving indicator
+            setTimeout(() => indicator.classList.remove('visible'), 500);
+        }
+    }
+
+    // Setup input handlers
+    document.querySelectorAll('.score-input').forEach(input => {
+        const debouncedSave = debounce(() => saveScore(input), 1000);
+        
+        input.addEventListener('input', () => {
+            input.classList.remove('invalid-score', 'score-saved');
+            const value = parseFloat(input.value);
+            const max = parseFloat(input.getAttribute('max'));
+            
+            if (!isNaN(value) && value >= 0 && value <= max) {
+                debouncedSave();
+            }
+        });
+        
+        input.addEventListener('blur', () => {
+            const value = parseFloat(input.value);
+            const max = parseFloat(input.getAttribute('max'));
+            
+            if (isNaN(value) || value < 0 || value > max) {
+                input.classList.add('invalid-score');
+            }
+        });
+    });
+
+    // Form submission handler for saving all scores
     document.getElementById('scoresForm').addEventListener('submit', function(e) {
         let hasError = false;
         const inputs = document.querySelectorAll('.score-input');

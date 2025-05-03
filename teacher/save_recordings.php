@@ -7,6 +7,7 @@ ini_set('error_log', dirname(__DIR__) . '/error.log');
 
 try {
     include '../includes/db.php';
+    session_start();
     
     // Debug input
     error_log('POST data: ' . print_r($_POST, true));
@@ -14,6 +15,10 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] != 'POST') {
         throw new Exception('Invalid request method');
+    }
+
+    if (!isset($_SESSION['user_id'])) {
+        throw new Exception('User not authenticated');
     }
 
     $uploadDir = dirname(__DIR__) . '/recordings/';
@@ -49,20 +54,21 @@ try {
         :class_id, 
         :subject_id, 
         :recording_path, 
-        NOW(), 
-        NOW(), 
+        :start_time,
+        :end_time,
         NOW()
     )";
     
     $stmt = $pdo->prepare($sql);
     $params = [
-        ':teacher_id' => $_POST['teacher_id'],
+        ':teacher_id' => $_SESSION['user_id'],
         ':class_id' => $_POST['class_id'],
         ':subject_id' => $_POST['subject_id'],
-        ':recording_path' => $fileUrl
+        ':recording_path' => $fileUrl,
+        ':start_time' => date('Y-m-d H:i:s'),
+        ':end_time' => date('Y-m-d H:i:s')
     ];
 
-    // Debug SQL
     error_log('SQL: ' . $sql);
     error_log('Params: ' . print_r($params, true));
 

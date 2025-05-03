@@ -70,6 +70,9 @@ $examCount = $stmt->fetch()['exam_count'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#4A90E2">
+    <script src="../assets/scripts.js"></script>
     <title>Teacher Dashboard - <?= htmlspecialchars($school['school_name'] ?? 'School MIS') ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">

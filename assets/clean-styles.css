@@ -324,6 +324,93 @@ th {
     box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
 }
 
+/* Offline Status Styles */
+.offline-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    z-index: 1000;
+    font-size: 14px;
+}
+
+body.offline .offline-indicator {
+    display: flex;
+}
+
+.pending-sync-status {
+    margin: 10px 0;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: #4A90E2;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #357ABD;
+}
+
+/* Offline Page Specific Styles */
+.offline-container {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 2rem;
+    text-align: center;
+}
+
+.offline-icon {
+    font-size: 4rem;
+    color: #4A90E2;
+    margin-bottom: 1rem;
+}
+
+.offline-message {
+    margin-bottom: 2rem;
+}
+
+.offline-features {
+    text-align: left;
+    background: rgba(74, 144, 226, 0.1);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+}
+
+.feature-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+}
+
+.feature-list i {
+    color: #4A90E2;
+}
+
 /* Responsive fixes */
 @media (max-width: 768px) {
     .assignments-grid {

@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once '../includes/auth.php';
 require_once '../includes/db.php';
 
@@ -11,6 +10,11 @@ if (!isLoggedIn() || !isTeacher()) {
 
 $teacherId = $_SESSION['user_id'];
 $schoolId = $_SESSION['school_id'] ?? 1;
+
+// Pagination settings
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$perPage = 10;
+$offset = ($page - 1) * $perPage;
 
 // Get filter values
 $session = $_GET['session'] ?? '';
@@ -58,6 +62,18 @@ if (!empty($classId)) {
 
 $query .= " ORDER BY e.session DESC, e.term DESC, e.created_at DESC";
 
+// Get total count for pagination
+$countQuery = str_replace("SELECT DISTINCT e.*, c.class_name", "SELECT COUNT(DISTINCT e.id) as total", $query);
+$countStmt = $pdo->prepare($countQuery);
+$countStmt->execute($params);
+$totalRecords = $countStmt->fetchColumn();
+$totalPages = ceil($totalRecords / $perPage);
+
+// Add pagination to the main query
+$query .= " LIMIT :offset, :per_page";
+$params[':offset'] = $offset;
+$params[':per_page'] = $perPage;
+
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $exams = $stmt->fetchAll();
@@ -99,32 +115,32 @@ $stats = $statsQuery->fetch();
 
         <!-- Stats Cards -->
         <div class="dashboard-grid mb-4">
-            <div class="card">
+            <div class="card stat-card">
                 <div class="d-flex align-items-center">
-                    <i class="fas fa-file-alt text-primary" style="font-size: 2rem;"></i>
+                    <i class="fas fa-file-alt text-primary fa-2x"></i>
                     <div class="ml-3">
                         <h3 class="mb-0"><?= count($exams) ?></h3>
-                        <p class="text-light mb-0">Active Exams</p>
+                        <p class="stats-label mb-0">Active Exams</p>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card stat-card">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-users text-success" style="font-size: 2rem;"></i>
                     <div class="ml-3">
                         <h3 class="mb-0"><?= $stats['total_students'] ?></h3>
-                        <p class="text-light mb-0">Total Students</p>
+                        <p class="stats-label mb-0">Total Students</p>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card stat-card">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-book text-warning" style="font-size: 2rem;"></i>
                     <div class="ml-3">
                         <h3 class="mb-0"><?= $stats['total_subjects'] ?></h3>
-                        <p class="text-light mb-0">Subjects Taught</p>
+                        <p class="stats-label mb-0">Subjects Taught</p>
                     </div>
                 </div>
             </div>
@@ -132,39 +148,41 @@ $stats = $statsQuery->fetch();
 
         <!-- Filters -->
         <div class="card mb-4">
-            <form method="get" action="" class="d-flex flex-wrap gap-3">
-                <div class="form-group mb-0" style="flex: 1; min-width: 200px;">
-                    <label for="session">Session:</label>
-                    <select name="session" id="session" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Sessions</option>
-                        <?php foreach ($sessions as $s): ?>
-                            <option value="<?= $s ?>" <?= $session == $s ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($s) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+            <form method="get" action="" class="filters-form">
+                <div class="filters-grid">
+                    <div class="form-group">
+                        <label for="session">Session:</label>
+                        <select name="session" id="session" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Sessions</option>
+                            <?php foreach ($sessions as $s): ?>
+                                <option value="<?= $s ?>" <?= $session == $s ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($s) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
-                <div class="form-group mb-0" style="flex: 1; min-width: 200px;">
-                    <label for="term">Term:</label>
-                    <select name="term" id="term" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Terms</option>
-                        <option value="1" <?= $term == '1' ? 'selected' : '' ?>>First Term</option>
-                        <option value="2" <?= $term == '2' ? 'selected' : '' ?>>Second Term</option>
-                        <option value="3" <?= $term == '3' ? 'selected' : '' ?>>Third Term</option>
-                    </select>
-                </div>
+                    <div class="form-group">
+                        <label for="term">Term:</label>
+                        <select name="term" id="term" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Terms</option>
+                            <option value="1" <?= $term == '1' ? 'selected' : '' ?>>First Term</option>
+                            <option value="2" <?= $term == '2' ? 'selected' : '' ?>>Second Term</option>
+                            <option value="3" <?= $term == '3' ? 'selected' : '' ?>>Third Term</option>
+                        </select>
+                    </div>
 
-                <div class="form-group mb-0" style="flex: 1; min-width: 200px;">
-                    <label for="class_id">Class:</label>
-                    <select name="class_id" id="class_id" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Classes</option>
-                        <?php foreach ($classes as $class): ?>
-                            <option value="<?= $class['id'] ?>" <?= $classId == $class['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($class['class_name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="form-group">
+                        <label for="class_id">Class:</label>
+                        <select name="class_id" id="class_id" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Classes</option>
+                            <?php foreach ($classes as $class): ?>
+                                <option value="<?= $class['id'] ?>" <?= $classId == $class['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($class['class_name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
             </form>
         </div>
@@ -224,6 +242,54 @@ $stats = $statsQuery->fetch();
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Pagination -->
+                <?php if ($totalPages > 1): ?>
+                    <div class="pagination-container mt-4">
+                        <div class="pagination">
+                            <?php if ($page > 1): ?>
+                                <a href="?page=1<?= !empty($session) ? '&session='.$session : '' ?><?= !empty($term) ? '&term='.$term : '' ?><?= !empty($classId) ? '&class_id='.$classId : '' ?>" class="pagination-btn">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                                <a href="?page=<?= $page-1 ?><?= !empty($session) ? '&session='.$session : '' ?><?= !empty($term) ? '&term='.$term : '' ?><?= !empty($classId) ? '&class_id='.$classId : '' ?>" class="pagination-btn">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            <?php endif; ?>
+
+                            <?php
+                            $start = max(1, $page - 2);
+                            $end = min($totalPages, $page + 2);
+                            
+                            if ($start > 1) {
+                                echo '<span class="pagination-ellipsis">...</span>';
+                            }
+                            
+                            for ($i = $start; $i <= $end; $i++): ?>
+                                <a href="?page=<?= $i ?><?= !empty($session) ? '&session='.$session : '' ?><?= !empty($term) ? '&term='.$term : '' ?><?= !empty($classId) ? '&class_id='.$classId : '' ?>" 
+                                   class="pagination-btn <?= $i === $page ? 'active' : '' ?>">
+                                    <?= $i ?>
+                                </a>
+                            <?php endfor;
+
+                            if ($end < $totalPages) {
+                                echo '<span class="pagination-ellipsis">...</span>';
+                            }
+                            ?>
+
+                            <?php if ($page < $totalPages): ?>
+                                <a href="?page=<?= $page+1 ?><?= !empty($session) ? '&session='.$session : '' ?><?= !empty($term) ? '&term='.$term : '' ?><?= !empty($classId) ? '&class_id='.$classId : '' ?>" class="pagination-btn">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                                <a href="?page=<?= $totalPages ?><?= !empty($session) ? '&session='.$session : '' ?><?= !empty($term) ? '&term='.$term : '' ?><?= !empty($classId) ? '&class_id='.$classId : '' ?>" class="pagination-btn">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                        <div class="pagination-info">
+                            Page <?= $page ?> of <?= $totalPages ?> (<?= $totalRecords ?> total records)
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         <?php else: ?>
             <div class="card">
@@ -231,5 +297,221 @@ $stats = $statsQuery->fetch();
             </div>
         <?php endif; ?>
     </div>
+
+    <style>
+        /* Mobile-first responsive styles */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-group {
+                margin-bottom: 1rem;
+            }
+
+            table {
+                border: 0;
+            }
+
+            table thead {
+                display: none;
+            }
+
+            table tr {
+                margin-bottom: 1rem;
+                display: block;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+
+            table td {
+                display: block;
+                text-align: right;
+                padding: 0.75rem;
+                position: relative;
+                border-bottom: 1px solid #eee;
+            }
+
+            table td:last-child {
+                border-bottom: 0;
+            }
+
+            table td::before {
+                content: attr(data-label);
+                float: left;
+                font-weight: bold;
+            }
+
+            .d-flex.gap-2 {
+                justify-content: flex-end;
+            }
+
+            .pagination-container {
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+
+            .pagination {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+
+            .pagination-btn {
+                min-width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+
+        /* Pagination styles */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 0.25rem;
+            align-items: center;
+        }
+
+        .pagination-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 35px;
+            height: 35px;
+            padding: 0.25rem 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover {
+            background-color: #f8f9fa;
+            border-color: #ddd;
+            text-decoration: none;
+        }
+
+        .pagination-btn.active {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+
+        .pagination-ellipsis {
+            padding: 0 0.5rem;
+        }
+
+        .pagination-info {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Additional responsive improvements */
+        .card {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .gap-2 {
+            gap: 0.5rem !important;
+        }
+
+        .gap-3 {
+            gap: 1rem !important;
+        }
+
+        .filters-form {
+            width: 100%;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .form-group {
+            margin: 0;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+        }
+
+        .stat-card {
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stats-label {
+            color: #666;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .fa-2x {
+            font-size: 2em;
+            margin-right: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .filters-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-group {
+                margin-bottom: 1rem;
+            }
+
+            .form-group:last-child {
+                margin-bottom: 0;
+            }
+
+            .stat-card {
+                padding: 1rem;
+            }
+
+            .stats-label {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
 </body>
 </html>

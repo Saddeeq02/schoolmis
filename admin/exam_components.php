@@ -8,7 +8,7 @@ if (!isLoggedIn() || !isAdmin()) {
     exit;
 }
 
-$examId = $_GET['exam_id'] ?? '';
+$examId = $_GET['id'] ?? ''; // Changed from exam_id to id to match URL parameter
 $error = '';
 $success = '';
 
@@ -32,7 +32,7 @@ if (isset($_POST['delete_component'])) {
     $componentId = $_POST['component_id'];
     
     // Check if scores exist for this component
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM scores WHERE component_id = ?");
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM student_scores WHERE component_id = ?");
     $stmt->execute([$componentId]);
     $hasScores = $stmt->fetchColumn() > 0;
     
@@ -51,6 +51,7 @@ if (isset($_POST['save_component'])) {
     $name = trim($_POST['name']);
     $maxMarks = floatval($_POST['max_marks']);
     $displayOrder = intval($_POST['display_order']);
+    $isEnabled = 1; // Default to enabled
     
     if (empty($name)) {
         $error = 'Component name is required.';
@@ -62,17 +63,17 @@ if (isset($_POST['save_component'])) {
                 // Update existing component
                 $stmt = $pdo->prepare("
                     UPDATE exam_components 
-                    SET name = ?, max_marks = ?, display_order = ? 
+                    SET name = ?, max_marks = ?, display_order = ?, is_enabled = ?
                     WHERE id = ? AND exam_id = ?
                 ");
-                $stmt->execute([$name, $maxMarks, $displayOrder, $componentId, $examId]);
+                $stmt->execute([$name, $maxMarks, $displayOrder, $isEnabled, $componentId, $examId]);
             } else {
                 // Add new component
                 $stmt = $pdo->prepare("
-                    INSERT INTO exam_components (exam_id, name, max_marks, display_order) 
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO exam_components (exam_id, name, max_marks, display_order, is_enabled) 
+                    VALUES (?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$examId, $name, $maxMarks, $displayOrder]);
+                $stmt->execute([$examId, $name, $maxMarks, $displayOrder, $isEnabled]);
             }
             $success = 'Component saved successfully.';
         } catch (PDOException $e) {
@@ -84,7 +85,7 @@ if (isset($_POST['save_component'])) {
 // Get existing components
 $stmt = $pdo->prepare("
     SELECT c.*, 
-           (SELECT COUNT(*) FROM scores s WHERE s.component_id = c.id) as score_count
+           (SELECT COUNT(*) FROM student_scores s WHERE s.component_id = c.id) as score_count
     FROM exam_components c 
     WHERE c.exam_id = ? 
     ORDER BY c.display_order

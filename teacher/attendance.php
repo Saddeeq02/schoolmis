@@ -96,11 +96,14 @@ ob_end_clean();
 <html>
 <head>
     <title>Attendance Scanner</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#4A90E2">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
-    <style>
+    <!-- <style>
         :root {
             --primary-color: #4A90E2;
             --secondary-color: #67B26F;
@@ -258,7 +261,7 @@ ob_end_clean();
                 max-height: 50vh;
             }
         }
-    </style>
+    </style> -->
 </head>
 <body>
     <div class="container">
@@ -303,6 +306,131 @@ ob_end_clean();
     </audio>
 
     <script>
+        // IndexedDB configuration
+        const DB_NAME = 'schoolMISDB';
+        const ATTENDANCE_STORE = 'attendance';
+        let db;
+
+        // Initialize IndexedDB
+        const dbRequest = indexedDB.open(DB_NAME, 1);
+
+        dbRequest.onerror = (event) => {
+            console.error('IndexedDB error:', event.target.error);
+        };
+
+        dbRequest.onupgradeneeded = (event) => {
+            db = event.target.result;
+            if (!db.objectStoreNames.contains(ATTENDANCE_STORE)) {
+                const store = db.createObjectStore(ATTENDANCE_STORE, { keyPath: 'id', autoIncrement: true });
+                store.createIndex('timestamp', 'timestamp');
+                store.createIndex('synced', 'synced');
+            }
+        };
+
+        dbRequest.onsuccess = (event) => {
+            db = event.target.result;
+            checkPendingAttendance();
+        };
+
+        // Save attendance record locally
+        async function saveAttendanceLocally(qrData) {
+            const transaction = db.transaction([ATTENDANCE_STORE], 'readwrite');
+            const store = transaction.objectStore(ATTENDANCE_STORE);
+            
+            const attendanceRecord = {
+                qrData: qrData,
+                timestamp: new Date(),
+                synced: false
+            };
+            
+            await store.add(attendanceRecord);
+            checkPendingAttendance();
+        }
+
+        // Check and display pending attendance records
+        async function checkPendingAttendance() {
+            const transaction = db.transaction([ATTENDANCE_STORE], 'readonly');
+            const store = transaction.objectStore(ATTENDANCE_STORE);
+            const request = store.index('synced').getAll(false);
+
+            request.onsuccess = () => {
+                const pendingRecords = request.result;
+                const pendingCount = pendingRecords.length;
+                
+                const statusContainer = document.getElementById('status-display');
+                if (pendingCount > 0) {
+                    const pendingDiv = document.createElement('div');
+                    pendingDiv.className = 'pending-sync-status';
+                    pendingDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-clock"></i> ${pendingCount} attendance record${pendingCount > 1 ? 's' : ''} pending sync
+                            <button onclick="syncAllAttendance()" class="btn btn-sm btn-primary ms-2">
+                                <i class="fas fa-sync"></i> Sync Now
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Insert after the clock status
+                    const clockStatus = statusContainer.querySelector('.clock-status');
+                    if (clockStatus) {
+                        clockStatus.parentNode.insertBefore(pendingDiv, clockStatus.nextSibling);
+                    } else {
+                        statusContainer.appendChild(pendingDiv);
+                    }
+                } else {
+                    const pendingDiv = statusContainer.querySelector('.pending-sync-status');
+                    if (pendingDiv) {
+                        pendingDiv.remove();
+                    }
+                }
+            };
+        }
+
+        // Sync all pending attendance records
+        async function syncAllAttendance() {
+            if (!navigator.onLine) {
+                alert('You are offline. Please check your internet connection and try again.');
+                return;
+            }
+
+            const transaction = db.transaction([ATTENDANCE_STORE], 'readonly');
+            const store = transaction.objectStore(ATTENDANCE_STORE);
+            const request = store.index('synced').getAll(false);
+
+            request.onsuccess = async () => {
+                const pendingRecords = request.result;
+                
+                for (const record of pendingRecords) {
+                    try {
+                        const response = await fetch('attendance.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({ qr_data: JSON.stringify(record.qrData) })
+                        });
+
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Mark as synced
+                            const updateTx = db.transaction([ATTENDANCE_STORE], 'readwrite');
+                            const updateStore = updateTx.objectStore(ATTENDANCE_STORE);
+                            record.synced = true;
+                            await updateStore.put(record);
+                        } else {
+                            throw new Error(result.message || 'Sync failed');
+                        }
+                    } catch (error) {
+                        console.error('Sync error:', error);
+                    }
+                }
+                
+                checkPendingAttendance();
+            };
+        }
+
         // Get last clock status from localStorage if it exists
         let lastClockStatus = localStorage.getItem('lastClockStatus');
         let lastClockTime = localStorage.getItem('lastClockTime');
@@ -350,6 +478,7 @@ ob_end_clean();
             localStorage.setItem('lastClockTime', time);
         }
 
+        // Modified scanner listener to support offline mode
         scanner.addListener('scan', function(content) {
             if (isProcessing) return;
             isProcessing = true;
@@ -360,64 +489,72 @@ ob_end_clean();
                     throw new Error('Invalid QR code format');
                 }
                 
-                fetch('attendance.php', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({ qr_data: content })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        successSound.play().catch(e => console.log('Audio play failed:', e));
-                        
-                        const isClockIn = data.action === 'clock_in';
-                        updateClockStatus(isClockIn, data.time);
+                if (navigator.onLine) {
+                    // Online mode - try immediate sync
+                    fetch('attendance.php', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({ qr_data: content })
+                    })
+                    .then(response => response.json())
+                    .then(async data => {
+                        if (data.success) {
+                            successSound.play().catch(e => console.log('Audio play failed:', e));
+                            
+                            const isClockIn = data.action === 'clock_in';
+                            updateClockStatus(isClockIn, data.time);
 
+                            document.getElementById('result').innerHTML = `
+                                <div class="alert alert-success">
+                                    <i class="fas fa-${isClockIn ? 'sign-in-alt' : 'sign-out-alt'}"></i> 
+                                    Successfully ${isClockIn ? 'Clocked In' : 'Clocked Out'} at ${data.time}
+                                </div>
+                            `;
+
+                            if (navigator.vibrate) {
+                                navigator.vibrate(200);
+                            }
+                        } else {
+                            throw new Error(data.message);
+                        }
+                    })
+                    .catch(async error => {
+                        // If online sync fails, save locally
+                        await saveAttendanceLocally(qrData);
                         document.getElementById('result').innerHTML = `
-                            <div class="alert alert-success">
-                                <i class="fas fa-${isClockIn ? 'sign-in-alt' : 'sign-out-alt'}"></i> 
-                                Successfully ${isClockIn ? 'Clocked In' : 'Clocked Out'} at ${data.time}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-clock"></i> Attendance saved offline. Will sync when online.
                             </div>
                         `;
-
-                        if (navigator.vibrate) {
-                            navigator.vibrate(200);
-                        }
-                    } else {
-                        errorSound.play().catch(e => console.log('Audio play failed:', e));
-                        
+                    })
+                    .finally(() => {
+                        isProcessing = false;
+                    });
+                } else {
+                    // Offline mode - save locally
+                    saveAttendanceLocally(qrData)
+                    .then(() => {
+                        document.getElementById('result').innerHTML = `
+                            <div class="alert alert-warning">
+                                <i class="fas fa-clock"></i> Attendance saved offline. Will sync when online.
+                            </div>
+                        `;
+                    })
+                    .catch(error => {
                         document.getElementById('result').innerHTML = `
                             <div class="alert alert-danger">
-                                <i class="fas fa-exclamation-circle"></i> ${data.message}
+                                <i class="fas fa-exclamation-circle"></i> Failed to save attendance: ${error.message}
                             </div>
                         `;
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    errorSound.play().catch(e => console.log('Audio play failed:', e));
-                    document.getElementById('result').innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-circle"></i> Network error. Please try again.
-                        </div>
-                    `;
-                })
-                .finally(() => {
-                    isProcessing = false;
-                    setTimeout(() => {
-                        const result = document.getElementById('result');
-                        if (result.firstChild) {
-                            result.firstChild.style.opacity = '0';
-                            result.firstChild.style.transition = 'opacity 0.5s';
-                            setTimeout(() => {
-                                result.innerHTML = '';
-                            }, 500);
-                        }
-                    }, 3000);
-                });
+                    })
+                    .finally(() => {
+                        isProcessing = false;
+                    });
+                }
+
             } catch (e) {
                 console.error('QR parse error:', e);
                 errorSound.play().catch(e => console.log('Audio play failed:', e));
@@ -429,7 +566,7 @@ ob_end_clean();
                 isProcessing = false;
             }
         });
-        
+
         // Start camera with improved error handling
         Instascan.Camera.getCameras().then(function(cameras) {
             if (cameras.length > 0) {
@@ -456,6 +593,17 @@ ob_end_clean();
                     <i class="fas fa-exclamation-circle"></i> Camera access error: ${e.message}
                 </div>
             `;
+        });
+
+        // Add online/offline event listeners
+        window.addEventListener('online', () => {
+            updateNetworkStatus();
+            checkPendingAttendance();
+        });
+        
+        window.addEventListener('offline', () => {
+            updateNetworkStatus();
+            checkPendingAttendance();
         });
     </script>
 </body>
