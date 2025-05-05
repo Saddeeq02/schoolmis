@@ -46,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login - School MIS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/modern.css">
+        <script src="assets/scripts.js"></script>
+
     <style>
         body {
             min-height: 100vh;

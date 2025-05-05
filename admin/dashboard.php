@@ -334,6 +334,14 @@ try {
                 </a>
             </div>
             <div class="col-6 col-md-3">
+                <a href="ai_report.php" class="menu-card d-flex flex-column align-items-center p-3">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Report</span>
+                </a>
+            </div>
+            
+            
+            <div class="col-6 col-md-3">
                 <a href="school_details.php" class="menu-card d-flex flex-column align-items-center p-3">
                     <i class="fas fa-cog menu-icon text-secondary"></i>
                     <span>Settings</span>

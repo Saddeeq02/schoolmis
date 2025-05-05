@@ -1,6 +1,50 @@
 <?php
 session_start();
 
+// Check for offline authentication
+$isOffline = isset($_GET['offline']) && $_GET['offline'] === 'true';
+
+if (!isset($_SESSION['user_id'])) {
+    // Check for offline authentication data
+    if ($isOffline && isset($_COOKIE['offline_auth'])) {
+        $offlineAuth = json_decode($_COOKIE['offline_auth'], true);
+        if ($offlineAuth && $offlineAuth['expiry'] > time()) {
+            // Use offline authentication data
+            $_SESSION = $offlineAuth['session'];
+        } else {
+            header("Location: /login.php?offline=true");
+            exit();
+        }
+    } else if (!$isOffline) {
+        header("Location: /login.php");
+        exit();
+    }
+}
+
+// Store authentication data for offline use
+if (isset($_SESSION['user_id']) && !$isOffline) {
+    $offlineData = [
+        'session' => $_SESSION,
+        'expiry' => time() + (7 * 24 * 60 * 60), // 7 days
+        'token' => bin2hex(random_bytes(32))
+    ];
+    setcookie(
+        'offline_auth',
+        json_encode($offlineData),
+        [
+            'expires' => time() + (7 * 24 * 60 * 60),
+            'path' => '/',
+            'secure' => true,
+            'httponly' => true,
+            'samesite' => 'Strict'
+        ]
+    );
+    // Also store in localStorage via JavaScript
+    echo "<script>
+        localStorage.setItem('offline_auth', '" . json_encode($offlineData) . "');
+    </script>";
+}
+
 // Check if user is logged in
 function isLoggedIn() {
     return isset($_SESSION['user_id']);

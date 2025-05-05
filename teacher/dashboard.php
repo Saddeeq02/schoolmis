@@ -76,6 +76,7 @@ $examCount = $stmt->fetch()['exam_count'];
     <title>Teacher Dashboard - <?= htmlspecialchars($school['name'] ?? 'School MIS') ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         :root {
             --primary: #4361ee;
@@ -275,6 +276,11 @@ $examCount = $stmt->fetch()['exam_count'];
             color: var(--danger);
         }
 
+        .menu-icon.ai-report {
+            background-color: #e8f5e9;
+            color: #43a047;
+        }
+
         .menu-card h3 {
             font-size: 1.2rem;
             margin-bottom: 10px;
@@ -374,6 +380,57 @@ $examCount = $stmt->fetch()['exam_count'];
         .welcome-message p {
             color: var(--gray);
         }
+
+        /* Install Button Styles */
+        #installContainer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background: var(--primary);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #installContainer:hover {
+            background: var(--secondary);
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        }
+
+        #installContainer i {
+            font-size: 1.2rem;
+        }
+
+        /* Offline Indicator */
+        #offlineIndicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--warning);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 50px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            z-index: 9999;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            #installContainer {
+                bottom: 80px; /* Above the bottom navigation */
+            }
+        }
     </style>
 </head>
 <body>
@@ -439,7 +496,7 @@ $examCount = $stmt->fetch()['exam_count'];
                     <i class="fas fa-clipboard-check"></i>
                 </div>
                 <h3>Attendance</h3>
-                <p>Mark and view student attendance</p>
+                <p>Take your School attendance</p>
             </a>
 
             <a href="record_audio.php" class="menu-card">
@@ -465,6 +522,26 @@ $examCount = $stmt->fetch()['exam_count'];
                 <h3>Exams</h3>
                 <p>Enter and manage student scores</p>
             </a>
+
+            <a href="ai_report.php" class="menu-card">
+                <div class="menu-icon ai-report">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h3>AI Report</h3>
+                <p>View AI-powered insights and analytics</p>
+            </a>
+        </div>
+
+        <!-- Add Install Button -->
+        <div id="installContainer">
+            <i class="fas fa-download"></i>
+            <span>Install SchoolMIS App</span>
+        </div>
+
+        <!-- Add Offline Indicator -->
+        <div id="offlineIndicator">
+            <i class="fas fa-wifi-slash"></i>
+            <span>You are offline</span>
         </div>
 
         <!-- Mobile Bottom Navigation -->
@@ -500,6 +577,54 @@ $examCount = $stmt->fetch()['exam_count'];
                 }
             });
         });
+
+        let deferredPrompt;
+        
+        // Listen for beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installContainer = document.getElementById('installContainer');
+            installContainer.style.display = 'flex';
+        });
+
+        // Handle install button click
+        document.getElementById('installContainer').addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                console.log('App was installed');
+            }
+            
+            deferredPrompt = null;
+            document.getElementById('installContainer').style.display = 'none';
+        });
+
+        // Handle online/offline status
+        function updateOnlineStatus() {
+            const offlineIndicator = document.getElementById('offlineIndicator');
+            if (navigator.onLine) {
+                offlineIndicator.style.display = 'none';
+            } else {
+                offlineIndicator.style.display = 'flex';
+            }
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus(); // Initial check
+
+        // Check if app is installed
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('installContainer').style.display = 'none';
+        });
+
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            document.getElementById('installContainer').style.display = 'none';
+        }
     </script>
 </body>
 </html>

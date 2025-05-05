@@ -3,88 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline - School MIS</title>
+    <title>Offline - SchoolMIS</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4A90E2">
+    <link rel="stylesheet" href="assets/clean-styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="/assets/clean-styles.css">
     <style>
         .offline-container {
-            text-align: center;
-            padding: 2rem;
             max-width: 600px;
-            margin: 0 auto;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
         }
-
         .offline-icon {
             font-size: 4rem;
-            color: #4A90E2;
-            margin-bottom: 1rem;
+            color: #ffc107;
+            margin-bottom: 20px;
         }
-
-        .offline-message {
-            margin-bottom: 2rem;
-        }
-
-        .offline-features {
+        .cached-content {
+            margin-top: 30px;
             text-align: left;
+        }
+        .cached-link {
+            display: block;
+            padding: 15px;
+            margin: 10px 0;
             background: rgba(74, 144, 226, 0.1);
-            padding: 1rem;
             border-radius: 8px;
-            margin-bottom: 2rem;
-        }
-
-        .offline-features h3 {
             color: #4A90E2;
+            text-decoration: none;
+            transition: background 0.3s;
         }
-
-        .feature-list {
-            list-style-type: none;
-            padding: 0;
+        .cached-link:hover {
+            background: rgba(74, 144, 226, 0.2);
         }
-
-        .feature-list li {
-            padding: 0.5rem 0;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .feature-list i {
-            color: #4A90E2;
+        .offline-status {
+            padding: 8px 16px;
+            background: #ffc107;
+            color: black;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
     <div class="offline-container">
-        <div class="offline-icon">
-            <i class="fas fa-wifi-slash"></i>
+        <i class="fas fa-wifi-slash offline-icon"></i>
+        <div class="offline-status">
+            <i class="fas fa-exclamation-triangle"></i> You are offline
         </div>
-        <h1>You're Offline</h1>
-        
-        <div class="offline-message">
-            <p>Don't worry! You can still use these features:</p>
+        <h1>No Internet Connection</h1>
+        <p>You can still access previously visited pages:</p>
+
+        <div class="cached-content">
+            <div id="cachedPages">
+                <a href="/teacher/dashboard.php" class="cached-link">
+                    <i class="fas fa-tachometer-alt"></i> Teacher Dashboard
+                </a>
+                <a href="/teacher/attendance.php" class="cached-link">
+                    <i class="fas fa-qrcode"></i> Take Attendance
+                </a>
+                <a href="/teacher/record_audio.php" class="cached-link">
+                    <i class="fas fa-microphone"></i> Record Audio
+                </a>
+                <a href="/teacher/view_recordings.php" class="cached-link">
+                    <i class="fas fa-play-circle"></i> View Recordings
+                </a>
+            </div>
         </div>
 
-        <div class="offline-features">
-            <h3>Available Offline</h3>
-            <ul class="feature-list">
-                <li>
-                    <i class="fas fa-check-circle"></i>
-                    Record attendance (will sync when online)
-                </li>
-                <li>
-                    <i class="fas fa-check-circle"></i>
-                    Record audio lessons (will sync when online)
-                </li>
-                <li>
-                    <i class="fas fa-check-circle"></i>
-                    View cached content
-                </li>
-            </ul>
+        <div id="reconnectButton" style="margin-top: 30px;">
+            <button onclick="window.location.reload()" class="btn">
+                <i class="fas fa-sync"></i> Try Again
+            </button>
         </div>
-
-        <button onclick="window.location.reload()" class="btn btn-primary">
-            <i class="fas fa-sync"></i> Try Again
-        </button>
     </div>
+
+    <script>
+        // Check if user is authenticated for offline access
+        document.addEventListener('DOMContentLoaded', () => {
+            const auth = JSON.parse(localStorage.getItem('offline_auth') || '{}');
+            const cachedPages = document.getElementById('cachedPages');
+            
+            if (!auth.token) {
+                // If not authenticated, only show login option
+                cachedPages.innerHTML = `
+                    <a href="/login.php" class="cached-link">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </a>
+                `;
+            }
+        });
+
+        // Check network status
+        function updateNetworkStatus() {
+            const reconnectButton = document.getElementById('reconnectButton');
+            if (navigator.onLine) {
+                reconnectButton.innerHTML = `
+                    <button onclick="window.location.href='/'" class="btn">
+                        <i class="fas fa-home"></i> Go to Homepage
+                    </button>
+                `;
+            }
+        }
+
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        updateNetworkStatus();
+    </script>
 </body>
 </html>

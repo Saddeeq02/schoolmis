@@ -1,30 +1,47 @@
 <?php
-session_start();
-include '../includes/auth.php';
-include '../includes/db.php';
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', dirname(__DIR__) . '/error.log');
 
-// Verify admin or teacher role
-if (!in_array($_SESSION['role'], ['admin', 'teacher'])) {
-    header("Location: ../unauthorized.php");
-    exit;
+// Add error handler
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    error_log("Error [$errno] $errstr on line $errline in file $errfile");
+    return false;
+});
+
+try {
+    include '../includes/auth.php';
+    include '../includes/db.php';
+
+    // Verify admin or teacher role
+    if (!in_array($_SESSION['role'], ['admin', 'teacher'])) {
+        header("Location: ../unauthorized.php");
+        exit;
+    }
+    // Get attendance records
+    $query = "SELECT u.name, s.name as school_name, a.clock_in, a.clock_out 
+              FROM attendance a 
+              JOIN users u ON a.user_id = u.id
+              JOIN schools s ON a.school_id = s.id";
+              
+    // If teacher, only show their school's records
+    if ($_SESSION['role'] === 'teacher') {
+        $query .= " WHERE a.school_id = ?";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindValue(1, $_SESSION['school_id'], PDO::PARAM_INT);
+    } else {
+        $stmt = $pdo->prepare($query);
+    }
+
+    $stmt->execute();
+    $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (Exception $e) {
+    error_log("Report.php Error: " . $e->getMessage());
+    die("An error occurred: " . $e->getMessage());
 }
-
-// Get attendance records
-$query = "SELECT u.name, a.school_name, a.clock_in, a.clock_out 
-          FROM attendance a 
-          JOIN users u ON a.user_id = u.id";
-          
-// If teacher, only show their school's records
-if ($_SESSION['role'] === 'teacher') {
-    $query .= " WHERE a.school_name = ?";
-    $stmt = $pdo->prepare($query);
-    $stmt->bindValue(1, $_SESSION['school_name'], PDO::PARAM_STR);
-} else {
-    $stmt = $pdo->prepare($query);
-}
-
-$stmt->execute();
-$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
