@@ -397,6 +397,64 @@ ob_end_clean();
                 gap: 0.5rem;
             }
         }
+        .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--white);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            padding: 10px 0;
+            z-index: 1000;
+        }
+
+        .nav-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: var(--gray);
+            font-size: 0.8rem;
+            padding: 5px 0;
+        }
+
+        .nav-link i {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .nav-link.active {
+            color: var(--primary);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .user-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .menu-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .bottom-nav {
+                display: flex;
+                justify-content: space-around;
+            }
+        }
     </style>
 </head>
 <body>
@@ -491,7 +549,24 @@ ob_end_clean();
             </a>
         </div>
     </div>
-
+    <nav class="bottom-nav">
+            <a href="attendance.php" class="nav-link">
+                <i class="fas fa-clipboard-check"></i>
+                <span>Attendance</span>
+            </a>
+            <a href="record_audio.php" class="nav-link">
+                <i class="fas fa-microphone-alt"></i>
+                <span>Record</span>
+            </a>
+            <a href="view_recordings.php" class="nav-link">
+                <i class="fas fa-headphones"></i>
+                <span>Recordings</span>
+            </a>
+            <a href="exams_list.php" class="nav-link">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Exams</span>
+            </a>
+        </nav>
     <!-- Audio elements -->
     <audio id="successSound" src="https://cdn.jsdelivr.net/npm/success-audio@1.0.0/success.mp3" preload="auto"></audio>
     <audio id="errorSound">
@@ -500,7 +575,7 @@ ob_end_clean();
 
     <script>
         // Debug logging
-        let debugMode = true; // Start with debug mode on to help troubleshoot
+        let debugMode = false; // Start with debug mode on to help troubleshoot
         const debugInfo = document.getElementById('debugInfo');
         debugInfo.style.display = 'block'; // Show debug info by default
         document.getElementById('toggleDebug').innerHTML = '<i class="fas fa-bug"></i> Hide Debug Info';

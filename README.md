@@ -53,16 +53,6 @@ School MIS is a comprehensive and user-friendly platform designed to streamline 
 - **Scalable**: Suitable for small schools to large institutions.
 - **Secure**: Implements best practices for data security.
 
-## How to Use the System
-
-### 1. **Installation**
-- Clone the repository to your local server.
-- Configure the database in `includes/config.php`.
-- Import the `MISdatabase.sql` file into your database.
-
-### 2. **Login**
-- Access the login page at `/login.php`.
-- Use your credentials to log in as an admin, teacher, or student.
 
 ### 3. **Admin Features**
 - Navigate to the admin dashboard to manage schools, users, and classes.

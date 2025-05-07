@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Brand Header -->
         <div class="brand">
             <i class="fas fa-graduation-cap brand-icon"></i>
-            <h1>School MIS</h1>
+            <h1>BI: School MIS</h1>
         </div>
         
         <!-- Login Form -->

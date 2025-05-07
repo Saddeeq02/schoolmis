@@ -31,6 +31,66 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/clean-styles.css">
+    <style>
+          .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--white);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            padding: 10px 0;
+            z-index: 1000;
+        }
+
+        .nav-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: var(--gray);
+            font-size: 0.8rem;
+            padding: 5px 0;
+        }
+
+        .nav-link i {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .nav-link.active {
+            color: var(--primary);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+
+            .user-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .menu-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .bottom-nav {
+                display: flex;
+                justify-content: space-around;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -113,6 +173,25 @@ try {
             <a href="dashboard.php" class="btn">Back to Dashboard</a>
         </div>
     </div>
+
+    <nav class="bottom-nav">
+            <a href="attendance.php" class="nav-link">
+                <i class="fas fa-clipboard-check"></i>
+                <span>Attendance</span>
+            </a>
+            <a href="record_audio.php" class="nav-link">
+                <i class="fas fa-microphone-alt"></i>
+                <span>Record</span>
+            </a>
+            <a href="view_recordings.php" class="nav-link">
+                <i class="fas fa-headphones"></i>
+                <span>Recordings</span>
+            </a>
+            <a href="exams_list.php" class="nav-link">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Exams</span>
+            </a>
+        </nav>
 
     <script>
         function playRecording(path) {

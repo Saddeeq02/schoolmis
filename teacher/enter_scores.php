@@ -407,48 +407,48 @@ foreach ($students as $student) {
     }
 
     // Save score for a single student and component
-    async function saveScore(input) {
-        const studentId = input.dataset.student;
-        const componentId = input.dataset.component;
-        const score = input.value;
-        const indicator = document.getElementById(`indicator-${studentId}`);
+    // async function saveScore(input) {
+    //     const studentId = input.dataset.student;
+    //     const componentId = input.dataset.component;
+    //     const score = input.value;
+    //     const indicator = document.getElementById(`indicator-${studentId}`);
         
-        try {
-            // Show saving indicator
-            indicator.classList.add('visible');
+    //     try {
+    //         // Show saving indicator
+    //         indicator.classList.add('visible');
             
-            const response = await fetch('save_score.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    student_id: studentId,
-                    exam_id: <?= $examId ?>,
-                    subject_id: <?= $selectedSubjectId ?>,
-                    component_id: componentId,
-                    score: score
-                })
-            });
+    //         const response = await fetch('save_score.php', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //             },
+    //             body: JSON.stringify({
+    //                 student_id: studentId,
+    //                 exam_id: <?= $examId ?>,
+    //                 subject_id: <?= $selectedSubjectId ?>,
+    //                 component_id: componentId,
+    //                 score: score
+    //             })
+    //         });
             
-            const result = await response.json();
+    //         const result = await response.json();
             
-            if (result.success) {
-                input.classList.add('score-saved');
-                setTimeout(() => input.classList.remove('score-saved'), 1000);
-            } else {
-                input.classList.add('invalid-score');
-                alert(result.message || 'Error saving score');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            input.classList.add('invalid-score');
-            alert('Failed to save score. Please try again.');
-        } finally {
-            // Hide saving indicator
-            setTimeout(() => indicator.classList.remove('visible'), 500);
-        }
-    }
+    //         if (result.success) {
+    //             input.classList.add('score-saved');
+    //             setTimeout(() => input.classList.remove('score-saved'), 1000);
+    //         } else {
+    //             input.classList.add('invalid-score');
+    //             alert(result.message || 'Error saving score');
+    //         }
+    //     } catch (error) {
+    //         console.error('Error:', error);
+    //         input.classList.add('invalid-score');
+    //         alert('Failed to save score. Please try again.');
+    //     } finally {
+    //         // Hide saving indicator
+    //         setTimeout(() => indicator.classList.remove('visible'), 500);
+    //     }
+    // }
 
     // Setup input handlers
     document.querySelectorAll('.score-input').forEach(input => {

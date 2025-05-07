@@ -297,7 +297,24 @@ $stats = $statsQuery->fetch();
             </div>
         <?php endif; ?>
     </div>
-
+    <nav class="bottom-nav">
+            <a href="attendance.php" class="nav-link">
+                <i class="fas fa-clipboard-check"></i>
+                <span>Attendance</span>
+            </a>
+            <a href="record_audio.php" class="nav-link">
+                <i class="fas fa-microphone-alt"></i>
+                <span>Record</span>
+            </a>
+            <a href="view_recordings.php" class="nav-link">
+                <i class="fas fa-headphones"></i>
+                <span>Recordings</span>
+            </a>
+            <a href="exams_list.php" class="nav-link">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Exams</span>
+            </a>
+        </nav>
     <style>
         /* Mobile-first responsive styles */
         @media (max-width: 768px) {

@@ -193,6 +193,7 @@ $subjects = $subjectsStmt->fetchAll(PDO::FETCH_ASSOC);
             <a href="dashboard.php" class="btn">Back to Dashboard</a>
         </div>
     </div>
+    
 
     <script>
         function editSubject(subjectId) {
