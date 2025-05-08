@@ -31,10 +31,30 @@ if (isset($_POST['admission_number']) && !empty($_POST['admission_number'])) {
     }
 }
 
-// Get school details - use 'default' if no specific school name is set
-$schoolName = isset($_SESSION['school_name']) ? $_SESSION['school_name'] : 'default';
-$schoolDetails = getSchoolDetails($pdo, $schoolName);
+// Get school details from schools table
+if ($student) {
+    $stmt = $pdo->prepare("SELECT name, address, border_color, logo_path FROM schools WHERE id = ?");
+    $stmt->execute([$student['school_id']]);
+    $schoolDetails = $stmt->fetch(PDO::FETCH_ASSOC);
+} else {
+    $schoolDetails = null;
+}
+
+// Fallback values
 $borderColor = $schoolDetails['border_color'] ?? '#3366cc';
+$logoPath = $schoolDetails['logo_path'] ?? '';
+
+// Function to lighten a hex color
+function lightenColor($hex, $percent = 0.3) {
+    $hex = ltrim($hex, '#');
+    $rgb = sscanf($hex, "%02x%02x%02x");
+    $r = min(255, $rgb[0] + ($rgb[0] * $percent));
+    $g = min(255, $rgb[1] + ($rgb[1] * $percent));
+    $b = min(255, $rgb[2] + ($rgb[2] * $percent));
+    return sprintf("#%02x%02x%02x", $r, $g, $b);
+}
+
+$lightBorderColor = lightenColor($borderColor, 0.6); // Lighter shade for row backgrounds
 
 // Define psychomotor skills and traits
 $psychomotorSkills = ['Handwriting', 'Reading Skills', 'Drawing', 'Crafts', 'Sports'];
@@ -47,64 +67,159 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Results</title>
-    <link rel="stylesheet" href="assets/clean-styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        .results-container {
-            max-width: 800px;
-            margin: 0 auto;
-            border: 10px solid <?= $borderColor ?>;
-            padding: 15px;
-            background-color: white;
-            font-size: 11px; /* Smaller base font size to fit more content */
+        @page {
+            size: A4 portrait;
+            margin: 0;
         }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.2; /* Tightened line height */
+            color: #333;
+            background-color: #fff;
+            margin: 0;
+            font-size: 8pt; /* Further reduced */
+        }
+
+        .container {
+            padding: 10mm;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 13pt; /* Smaller */
+            text-align: center;
+            margin-bottom: 4mm; /* Reduced */
+        }
+
+        .form-group {
+            margin-bottom: 4mm; /* Reduced */
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 1mm;
+            font-size: 8pt;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 1.5mm; /* Reduced */
+            font-size: 8pt;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            display: block;
+            margin: 4mm auto; /* Reduced */
+            padding: 1.5mm 4mm; /* Reduced */
+            background-color: <?= $borderColor ?>;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 8pt;
+        }
+
+        .btn:hover {
+            background-color: <?= lightenColor($borderColor, -0.2) ?>;
+        }
+
+        .alert-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 2mm; /* Reduced */
+            margin-bottom: 4mm;
+            border-radius: 3px;
+            font-size: 8pt;
+        }
+
+        .report-card {
+            width: 210mm;
+            height: 297mm; /* Fixed A4 height */
+            margin: 0 auto;
+            border: 12px solid <?= $borderColor ?>;
+            background-color: white;
+            padding: 7mm; /* Further reduced */
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden; /* Prevent overflow */
+        }
+
         .school-header {
             text-align: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid <?= $borderColor ?>;
+            margin-bottom: 3mm; /* Reduced */
+            padding-bottom: 1.5mm; /* Reduced */
+            border-bottom: 1px solid <?= $borderColor ?>;
         }
+
+        .school-header h2 {
+            margin: 0.5mm 0; /* Reduced */
+            font-size: 12pt; /* Smaller */
+        }
+
+        .school-header h3 {
+            margin: 0.5mm 0;
+            font-size: 10pt; /* Smaller */
+        }
+
+        .school-header p {
+            margin: 0.5mm 0;
+            font-size: 8pt;
+        }
+
         .school-logo {
-            max-width: 80px;
-            max-height: 80px;
-            margin-bottom: 5px;
+            max-width: 35px; /* Smaller */
+            max-height: 35px;
+            margin-bottom: 1.5mm; /* Reduced */
         }
+
         .student-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5mm; /* Reduced */
+            margin-bottom: 2mm; /* Reduced */
+            font-size: 8pt;
         }
-        .student-info div {
-            margin-bottom: 5px;
+
+        .student-info p {
+            margin: 0.3mm 0; /* Reduced */
         }
+
         .results-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 3mm;
-            font-size: 9pt;
+            margin-bottom: 1.5mm; /* Reduced */
+            font-size: 7.5pt; /* Smaller */
             background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Lighter shadow */
         }
 
         .results-table th, .results-table td {
-            padding: 2mm;
-            border: 0.5pt solid #DEB887;
+            padding: 1.2mm; /* Further reduced */
+            border: 0.5pt solid <?= $borderColor ?>;
             text-align: left;
         }
 
         .results-table th {
-            background: linear-gradient(135deg, #8B4513, #A0522D) !important;
+            background: linear-gradient(135deg, <?= $borderColor ?>, <?= lightenColor($borderColor, 0.2) ?>) !important;
             color: white !important;
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 8.5pt;
+            font-size: 7pt; /* Smaller */
             letter-spacing: 0.2mm;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
         .results-table tbody tr:nth-child(even) {
-            background-color: #FFF8F3;
+            background-color: <?= $lightBorderColor ?>;
         }
 
         .results-table tbody td {
@@ -117,7 +232,7 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
         }
 
         .results-table tfoot tr {
-            border-top: 1pt solid #8B4513;
+            border-top: 1pt solid <?= $borderColor ?>;
         }
 
         .results-table tfoot th {
@@ -126,89 +241,171 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
             font-weight: 600;
         }
 
-        .print-button {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 20px;
+        .position {
+            margin: 1.5mm 0; /* Reduced */
+            font-size: 8pt;
         }
-        .comments {
-            margin: 15px 0;
-        }
-        .signatures {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-        }
-        .signature-line {
-            width: 40%;
-            border-top: 1px solid #333;
-            padding-top: 5px;
-            text-align: center;
-        }
+
         .skills-container {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-            gap: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5mm; /* Reduced */
+            margin: 1.5mm 0; /* Reduced */
         }
+
         .skills-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 8.5pt;
+            font-size: 7pt; /* Smaller */
             background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .skills-table th, .skills-table td {
-            padding: 1.5mm;
-            border: 0.5pt solid #DEB887;
+            padding: 0.8mm; /* Further reduced */
+            border: 0.5pt solid <?= $borderColor ?>;
             text-align: left;
         }
 
         .skills-table th {
-            background: linear-gradient(135deg, #8B4513, #A0522D) !important;
+            background: linear-gradient(135deg, <?= $borderColor ?>, <?= lightenColor($borderColor, 0.2) ?>) !important;
             color: white !important;
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 8pt;
+            font-size: 6.5pt; /* Smaller */
             letter-spacing: 0.2mm;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
-        h4, h3, h2 {
-            margin: 5px 0;
+
+        .comments {
+            margin: 1.5mm 0; /* Reduced */
+            font-size: 8pt;
+            margin-bottom: 10mm; /* Further reduced */
         }
+
+        .comments h4 {
+            margin: 0.3mm 0; /* Reduced */
+            font-size: 8pt;
+            font-weight: bold;
+        }
+
+        .comment-line {
+            border-bottom: 1pt solid #333;
+            width: 100%;
+            height: 4mm; /* Further reduced */
+            margin-bottom: 0.5mm; /* Reduced */
+        }
+
+        .signatures {
+            position: absolute;
+            bottom: 7mm; /* Adjusted */
+            left: 7mm;
+            right: 7mm;
+            display: flex;
+            justify-content: space-between;
+            font-size: 7.5pt; /* Smaller */
+        }
+
+        .signature-line {
+            width: 50mm;
+            text-align: center;
+        }
+
+        .signature-line .line {
+            width: 100%;
+            border-bottom: 1pt solid #333;
+            margin-bottom: 0.3mm; /* Reduced */
+            height: 3.5mm; /* Further reduced */
+        }
+
+        .signature-line p {
+            margin: 0;
+            font-size: 7.5pt;
+        }
+
+        .download-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 8pt;
+            padding: 1.5mm 4mm; /* Reduced */
+            background-color: <?= $borderColor ?>;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .download-button:hover {
+            background-color: <?= lightenColor($borderColor, -0.2) ?>;
+        }
+
+        /* Mobile Responsiveness */
+        @media screen and (max-width: 600px) {
+            .container {
+                padding: 5mm;
+            }
+
+            .report-card {
+                width: 100%;
+                height: auto; /* Allow height to adjust */
+                border-width: 6px;
+                padding: 4mm; /* Reduced */
+            }
+
+            .student-info {
+                grid-template-columns: 1fr; /* Stack vertically */
+            }
+
+            .results-table, .skills-table {
+                font-size: 6.5pt; /* Smaller */
+            }
+
+            .results-table th, .results-table td,
+            .skills-table th, .skills-table td {
+                padding: 0.6mm; /* Reduced */
+            }
+
+            .skills-container {
+                grid-template-columns: 1fr; /* Stack tables */
+                gap: 1mm;
+            }
+
+            .signatures {
+                flex-direction: column;
+                gap: 1.5mm;
+                position: static;
+                margin-top: 3mm;
+            }
+
+            .signature-line {
+                width: 100%;
+            }
+
+            .form-group input, .form-group select {
+                font-size: 6.5pt;
+            }
+
+            .btn, .download-button {
+                font-size: 6.5pt;
+                padding: 1mm 3mm; /* Reduced */
+            }
+        }
+
         @media print {
             body {
-                background: white;
-                color: black;
-                font-size: 11px;
+                background: none;
             }
-            .container {
-                background: white;
-                box-shadow: none;
-                padding: 0;
-                max-width: 100%;
+            .container, form, .download-button {
+                display: none; /* Hide form and button in PDF */
             }
-            .print-button, form {
-                display: none;
-            }
-            .results-container {
-                border: 10px solid <?= $borderColor ?>;
-                padding: 15px;
-                page-break-after: always;
-            }
-            .results-table th {
-                background-color: <?= $borderColor ?> !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            .skills-table th {
-                background-color: <?= $borderColor ?> !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+            .report-card {
+                display: block !important;
+                margin: 0;
+                border: 12px solid <?= $borderColor ?>;
+                height: 297mm;
+                padding: 7mm;
             }
         }
     </style>
@@ -243,22 +440,21 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
         </form>
         
         <?php if ($error): ?>
-            <div class="alert alert-error"><?php echo $error; ?></div>
+            <div class="alert-error"><?php echo $error; ?></div>
         <?php endif; ?>
         
         <?php if ($student && $selectedExam): ?>
-            <div class="results-container">
+            <div class="report-card" id="report-card">
+                <button onclick="downloadPDF()" class="download-button">Download PDF</button>
+                
                 <div class="school-header">
-                <?php if ($schoolDetails && !empty($schoolDetails['logo_path'])): ?>
-                        <img src="<?= './' . htmlspecialchars($schoolDetails['logo_path']); ?>" alt="School Logo" class="school-logo">
+                    <?php if ($schoolDetails && !empty($logoPath)): ?>
+                        <img src="<?= '../' . htmlspecialchars($logoPath) ?>" alt="School Logo" class="school-logo">
                     <?php endif; ?>
-                    <img src="<?= './' . htmlspecialchars($schoolDetails['logo_path']); ?>" alt="School Logo" class="school-logo">
-
-                    <h2><?= $schoolDetails ? htmlspecialchars($schoolDetails['school_name']) : 'School Name'; ?></h2>
-                    <p><?= $schoolDetails ? htmlspecialchars($schoolDetails['address']) : ''; ?></p>
+                    
+                    <h2><?= $schoolDetails ? htmlspecialchars($schoolDetails['name']) : 'School MIS' ?></h2>
+                    <p><?= $schoolDetails ? htmlspecialchars($schoolDetails['address']) : '' ?></p>
                     <h3>Student Result Sheet</h3>
-
-
                 </div>
                 
                 <div class="student-info">
@@ -282,7 +478,6 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
                         <tr>
                             <th>Subject</th>
                             <?php
-                            // Get exam components
                             $components = getExamComponents($pdo, $selectedExam['id']);
                             foreach ($components as $component):
                                 if ($component['is_enabled']):
@@ -299,7 +494,6 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
                     </thead>
                     <tbody>
                         <?php
-                        // Get subjects for the student's class
                         $subjects = getSubjectsByClass($pdo, $student['class_id']);
                         $totalMarks = 0;
                         $totalMaxMarks = 0;
@@ -323,7 +517,6 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
                                     endif;
                                 endforeach; 
                                 
-                                // Calculate grade and remarks
                                 $grade = calculateGrade($subjectTotal, $subjectMaxTotal);
                                 $remarks = getRemarks($grade);
                                 
@@ -356,76 +549,104 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
                     </tfoot>
                 </table>
                 
-                <div>
+                <div class="position">
                     <h4>Position in Class: <?php echo getStudentPosition($pdo, $student['id'], $selectedExam['id'], $student['class_id']); ?></h4>
+                </div>
+                
+                <div class="skills-container">
+                    <table class="skills-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Psychomotor Skills</th>
+                            </tr>
+                            <tr>
+                                <th>Skill</th>
+                                <th>Rating (out of 5)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($psychomotorSkills as $skill): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($skill); ?></td>
+                                <td>_____/5</td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                     
-                    <div class="skills-container">
-                        <table class="skills-table">
-                            <thead>
-                                <tr>
-                                    <th colspan="2">Psychomotor Skills</th>
-                                </tr>
-                                <tr>
-                                    <th>Skill</th>
-                                    <th>Rating (out of 5)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($psychomotorSkills as $skill): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($skill) ?></td>
-                                    <td>_____/5</td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                        
-                        <table class="skills-table">
-                            <thead>
-                                <tr>
-                                    <th colspan="2">Character Traits</th>
-                                </tr>
-                                <tr>
-                                    <th>Trait</th>
-                                    <th>Rating (out of 5)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($traits as $trait): ?>
-                                <tr>
-                                    <td><?= htmlspecialchars($trait) ?></td>
-                                    <td>_____/5</td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                    <table class="skills-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Character Traits</th>
+                            </tr>
+                            <tr>
+                                <th>Trait</th>
+                                <th>Rating (out of 5)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($traits as $trait): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($trait); ?></td>
+                                <td>_____/5</td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="comments">
+                    <div>
+                        <h4>Class Teacher's Comment:</h4>
+                        <div class="comment-line"></div>
                     </div>
                     
-                    <div class="comments">
-                        <div>
-                            <h4>Class Teacher's Comment:</h4>
-                            <p>_______________________________________________________________________</p>
-                        </div>
-                        
-                        <div>
-                            <h4>Principal's Comment:</h4>
-                            <p>_______________________________________________________________________</p>
-                        </div>
-                    </div>
-                    
-                    <div class="signatures">
-                        <div class="signature-line">
-                            <p>Class Teacher</p>
-                        </div>
-                        <div class="signature-line">
-                            <p>Principal</p>
-                        </div>
+                    <div>
+                        <h4>Principal's Comment:</h4>
+                        <div class="comment-line"></div>
                     </div>
                 </div>
                 
-                <button class="btn print-button" onclick="window.print()">Print Result</button>
+                <div class="signatures">
+                    <div class="signature-line">
+                        <div class="line"></div>
+                        <p>Class Teacher's Signature</p>
+                    </div>
+                    <div class="signature-line">
+                        <div class="line"></div>
+                        <p>Principal's Signature</p>
+                    </div>
+                    <div class="signature-line">
+                        <div class="line"></div>
+                        <p>Parent's Signature</p>
+                    </div>
+                </div>
             </div>
         <?php endif; ?>
     </div>
+
+    <script>
+        function downloadPDF() {
+            const downloadButton = document.querySelector('.download-button');
+            downloadButton.innerHTML = 'Generating...';
+            downloadButton.disabled = true;
+            
+            const element = document.getElementById('report-card');
+            const opt = {
+                margin: 0,
+                filename: `Result_${<?php echo json_encode(htmlspecialchars($student['name'] ?? 'Student')); ?>}_${<?php echo json_encode(htmlspecialchars($selectedExam['session'] ?? 'Exam')); ?>}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 4, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Generate and download PDF
+            html2pdf().set(opt).from(element).save().then(() => {
+                downloadButton.innerHTML = 'Download PDF';
+                downloadButton.disabled = false;
+                downloadButton.style.display = 'block';
+            });
+        }
+    </script>
 </body>
 </html>
