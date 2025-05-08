@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../components/school_selector.php';
@@ -92,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    <title>Edit Student</title>
    <meta name="viewport" content="width=device-width, initial-scale=1.0">
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-   <link rel="stylesheet" href="../assets/styles.css">
+   <link rel="stylesheet" href="../assets/clean-styles.css">
 </head>
 <body>
    <div class="container">

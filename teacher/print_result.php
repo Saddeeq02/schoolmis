@@ -35,7 +35,20 @@ $stmt = $pdo->prepare("SELECT * FROM schools WHERE id = ?");
 $stmt->execute([$student['school_id']]);
 $schoolDetails = $stmt->fetch();
 
+// Set border color with fallback
 $borderColor = $schoolDetails['border_color'] ?? '#3366cc';
+
+// Function to lighten a hex color
+function lightenColor($hex, $percent = 0.3) {
+    $hex = ltrim($hex, '#');
+    $rgb = sscanf($hex, "%02x%02x%02x");
+    $r = min(255, $rgb[0] + ($rgb[0] * $percent));
+    $g = min(255, $rgb[1] + ($rgb[1] * $percent));
+    $b = min(255, $rgb[2] + ($rgb[2] * $percent));
+    return sprintf("#%02x%02x%02x", $r, $g, $b);
+}
+
+$lightBorderColor = lightenColor($borderColor, 0.6); // Lighter shade for row backgrounds
 
 // Get result data
 $result = getStudentExamResult($pdo, $studentId, $examId);
@@ -57,6 +70,7 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Result - <?= htmlspecialchars($student['name']) ?></title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         @page {
             size: A4 portrait;
@@ -74,7 +88,7 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
 
         .report-card {
             width: 210mm;
-            height: 297mm; /* Fixed height to A4 */
+            height: 297mm; /* Fixed height for A4 */
             margin: 0 auto;
             border: 12px solid <?= $borderColor ?>;
             background-color: white;
@@ -129,20 +143,48 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
             border-collapse: collapse;
             margin-bottom: 3mm;
             font-size: 9pt;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Enhanced shadow */
         }
 
         .results-table th, .results-table td {
-            padding: 1mm;
-            border: 0.5pt solid #ddd;
+            padding: 1.8mm; /* Slightly reduced for space */
+            border: 0.5pt solid <?= $borderColor ?>; /* Dynamic border color */
             text-align: left;
         }
 
         .results-table th {
-            background-color: <?= $borderColor ?> !important;
-            color: white !important;
-            font-weight: bold;
+            background: linear-gradient(135deg, <?= $borderColor ?>, <?= lightenColor($borderColor, 0.2) ?>) !important; /* Dynamic gradient */
+            color: white !important; /* Default for readability */
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 8.5pt;
+            letter-spacing: 0.2mm;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+        }
+
+        .results-table tbody tr:nth-child(even) {
+            background-color: <?= $lightBorderColor ?>; /* Dynamic lighter shade */
+        }
+
+        .results-table tbody td {
+            color: #1A1A1A; /* Default for readability */
+        }
+
+        .results-table .grade {
+            font-weight: 600;
+            color: #8B4513; /* Static for consistency */
+        }
+
+        .results-table tfoot tr {
+            border-top: 1pt solid <?= $borderColor ?>; /* Dynamic border color */
+        }
+
+        .results-table tfoot th {
+            background: #FFF8F3 !important; /* Static for aesthetics */
+            color: #1A1A1A !important; /* Default for readability */
+            font-weight: 600;
         }
 
         .skills-container {
@@ -156,17 +198,23 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
             width: 100%;
             border-collapse: collapse;
             font-size: 8.5pt;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Enhanced shadow */
         }
 
         .skills-table th, .skills-table td {
-            padding: 1mm;
-            border: 0.5pt solid #ddd;
+            padding: 1.5mm;
+            border: 0.5pt solid <?= $borderColor ?>; /* Dynamic border color */
             text-align: left;
         }
 
         .skills-table th {
-            background-color: <?= $borderColor ?> !important;
-            color: white !important;
+            background: linear-gradient(135deg, <?= $borderColor ?>, <?= lightenColor($borderColor, 0.2) ?>) !important; /* Dynamic gradient */
+            color: white !important; /* Default for readability */
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 8pt;
+            letter-spacing: 0.2mm;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -174,7 +222,7 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
         .comments {
             margin: 3mm 0;
             font-size: 9pt;
-            margin-bottom: 25mm; /* Reduced space before signatures */
+            margin-bottom: 15mm; /* Kept to fit signatures */
         }
 
         .comments h4 {
@@ -184,14 +232,15 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
         }
 
         .comment-line {
-            border-bottom: 0.5pt solid #ddd;
+            border-bottom: 1pt solid #333;
+            width: 100%;
             height: 6mm;
-            margin-bottom: 3mm;
+            margin-bottom: 2mm;
         }
 
         .signatures {
             position: absolute;
-            bottom: 6mm;
+            bottom: 8mm;
             left: 10mm;
             right: 10mm;
             display: flex;
@@ -206,13 +255,31 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
 
         .signature-line .line {
             width: 100%;
-            border-bottom: 0.5pt solid #333;
+            border-bottom: 1pt solid #333;
             margin-bottom: 1mm;
-            height: 10mm;
+            height: 5mm;
         }
 
         .signature-line p {
             margin: 0;
+        }
+
+        .download-button {
+            position: fixed;
+ Milwaukee, WI 53201-0701
+            top: 10px;
+            right: 10px;
+            font-size: 8pt;
+            padding: 2px 5px;
+            background-color: <?= $borderColor ?>; /* Dynamic button color */
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .download-button:hover {
+            background-color: <?= lightenColor($borderColor, -0.2) ?>; /* Darker shade on hover */
         }
 
         @media print {
@@ -224,15 +291,15 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
                 border: 12px solid <?= $borderColor ?>;
                 height: 297mm;
             }
-            .print-button {
+            .download-button {
                 display: none;
             }
         }
     </style>
 </head>
 <body>
-    <div class="report-card">
-        <button onclick="window.print()" class="print-button" style="position: fixed; top: 10px; right: 10px; font-size: 8pt; padding: 2px 5px;">Print</button>
+    <div class="report-card" id="report-card">
+        <button onclick="downloadPDF()" class="download-button">Download PDF</button>
         
         <div class="school-header">
             <?php if ($schoolDetails && !empty($schoolDetails['logo_path'])): ?>
@@ -382,5 +449,28 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
             </div>
         </div>
     </div>
+
+    <script>
+        function downloadPDF() {
+            const element = document.getElementById('report-card');
+            const opt = {
+                margin: 0,
+                filename: `Result_${<?= json_encode(htmlspecialchars($student['name'])) ?>}_${<?= json_encode(htmlspecialchars($exam['session'])) ?>}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 3, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Hide the download button during PDF generation
+            const downloadButton = document.querySelector('.download-button');
+            downloadButton.style.display = 'none';
+
+            // Generate and download PDF
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Restore the button after generation
+                downloadButton.style.display = 'block';
+            });
+        }
+    </script>
 </body>
 </html>

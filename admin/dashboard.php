@@ -63,6 +63,63 @@ try {
 } catch (PDOException $e) {
     error_log("Error fetching dashboard data: " . $e->getMessage());
 }
+try {
+    // Query to fetch recent activities (attendance and recordings)
+    $activitiesQuery = "
+        SELECT 
+            u.name AS teacher_name,
+            s.name AS school_name,
+            a.clock_in AS activity_time,
+            CASE 
+                WHEN a.clock_out IS NULL THEN 'Clocked In'
+                ELSE 'Clocked Out'
+            END AS activity_type
+        FROM attendance a
+        JOIN users u ON a.user_id = u.id
+        JOIN schools s ON a.school_id = s.id
+        WHERE a.clock_in IS NOT NULL
+        UNION
+        SELECT 
+            u.name AS teacher_name,
+            s.name AS school_name,
+            r.created_at AS activity_time,
+            'Submitted Recording' AS activity_type
+        FROM recordings r
+        JOIN users u ON r.teacher_id = u.id
+        JOIN schools s ON u.school_id = s.id
+        ORDER BY activity_time DESC
+        LIMIT 5
+    ";
+
+    $stmt = $pdo->prepare($activitiesQuery);
+    $stmt->execute();
+    $recentActivities = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    error_log("Recent Activities Error: " . $e->getMessage());
+    $recentActivities = []; // Fallback to empty array on error
+}
+
+// Function to format relative time (e.g., "5 minutes ago")
+// function formatRelativeTime($timestamp) {
+//     $now = new DateTime();
+//     $activityTime = new DateTime($timestamp);
+//     $diff = $now->diff($activityTime);
+
+//     if ($diff->y > 0) {
+//         return $diff->y . " year" . ($diff->y > 1 ? "s" : "") . " ago";
+//     } elseif ($diff->m > 0) {
+//         return $diff->m . " month" . ($diff->m > 1 ? "s" : "") . " ago";
+//     } elseif ($diff->d > 0) {
+//         return $diff->d . " day" . ($diff->d > 1 ? "s" : "") . " ago";
+//     } elseif ($diff->h > 0) {
+//         return $diff->h . " hour" . ($diff->h > 1 ? "s" : "") . " ago";
+//     } elseif ($diff->i > 0) {
+//         return $diff->i . " minute" . ($diff->i > 1 ? "s" : "") . " ago";
+//     } else {
+//         return "Just now";
+//     }
+// }
 ?>
 
 <!DOCTYPE html>
@@ -296,7 +353,7 @@ try {
             <div class="col-6 col-md-3">
                 <a href="report.php" class="menu-card d-flex flex-column align-items-center p-3">
                     <i class="fas fa-chart-bar menu-icon text-success"></i>
-                    <span>Reports</span>
+                    <span>Attendance Reports</span>
                 </a>
             </div>
         </div>
@@ -351,29 +408,40 @@ try {
 
         <!-- Recent Activities -->
         <div class="card mt-4">
-            <div class="card-header bg-white">
-                <h5 class="mb-0">Recent Activities</h5>
-            </div>
-            <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    <!-- You can fetch recent activities from the database here -->
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-user-plus text-primary me-2"></i> New student registered</span>
-                        <span class="badge bg-primary rounded-pill">Today</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-edit text-success me-2"></i> Exam scores updated</span>
-                        <span class="badge bg-success rounded-pill">Yesterday</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="fas fa-user-tie text-warning me-2"></i> New teacher added</span>
-                        <span class="badge bg-warning text-dark rounded-pill">3 days ago</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Recent Activities</h5>
     </div>
-
+    <div class="card-body">
+        <ul class="list-group list-group-flush">
+            <?php if (empty($recentActivities)): ?>
+                <li class="list-group-item text-muted">
+                    No recent activities found.
+                </li>
+            <?php else: ?>
+                <?php foreach ($recentActivities as $activity): ?>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fas <?php 
+                                echo $activity['activity_type'] === 'Clocked In' ? 'fa-sign-in-alt text-primary' : 
+                                     ($activity['activity_type'] === 'Clocked Out' ? 'fa-sign-out-alt text-danger' : 
+                                     'fa-microphone text-success'); 
+                            ?> me-2"></i>
+                            <strong><?= htmlspecialchars($activity['teacher_name']) ?></strong> 
+                            (<?= htmlspecialchars($activity['school_name']) ?>) 
+                            <?= htmlspecialchars($activity['activity_type']) ?>
+                        </span>
+                        <span class="badge bg-<?php 
+                            echo $activity['activity_type'] === 'Clocked In' ? 'primary' : 
+                                 ($activity['activity_type'] === 'Clocked Out' ? 'danger' : 'success'); 
+                        ?> rounded-pill">
+                            <?= formatRelativeTime($activity['activity_time']) ?>
+                        </span>
+                    </li>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </ul>
+    </div>
+</div>
     <!-- Bottom Navigation for Mobile -->
     <div class="bottom-nav py-2 px-3 justify-content-around">
         <a href="dashboard.php" class="btn btn-sm btn-light active">

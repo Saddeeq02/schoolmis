@@ -1,9 +1,9 @@
 <?php
 // Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
-ini_set('error_log', dirname(__DIR__) . '/error.log');
+// error_reporting(E_ALL);
+// ini_set('display_errors', 1);
+// ini_set('log_errors', 1);
+// ini_set('error_log', dirname(__DIR__) . '/error.log');
 
 // Add error handler
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
@@ -49,15 +49,204 @@ try {
 <head>
     <title>Attendance Reports</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <link rel="stylesheet" href="../assets/clean-styles.css">
+    <style>
+        .recordings-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .recordings-table thead {
+            background: linear-gradient(135deg,rgb(19, 55, 139),rgb(23, 48, 24));
+            color: violet;
+        }
+
+        .recordings-table th {
+            color: blue;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            padding: 1.2rem 1rem;
+            letter-spacing: 0.5px;
+            border: none;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .recordings-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .recordings-table tbody tr:hover {
+            background-color: #fff8f3;
+        }
+
+        .recordings-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            padding: 0.5em 0.8em;
+            border-radius: 30px;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .badge.bg-warning {
+            background-color: #FFF3CD !important;
+            color: #856404;
+            border: 1px solid #FFEEBA;
+        }
+
+        .filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .form-group label {
+            color:rgb(19, 89, 139);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .form-control {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 0.5rem;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color:rgb(19, 23, 139);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(139, 69, 19, 0.1);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-success {
+            background:rgb(19, 41, 139);
+            border: none;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background:rgb(19, 41, 139);
+            transform: translateY(-1px);
+        }
+
+        .btn-success a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .container {
+            padding: 2rem;
+            max-width: 1400px;
+        }
+
+        @media (max-width: 768px) {
+            .filter-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .recordings-table {
+                display: block;
+                overflow-x: auto;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+        }
+        .menu-card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,.04);
+            transition: all 0.3s;
+            text-decoration: none;
+            color: #212529;
+            height: 100%;
+        }
+        .menu-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,.08);
+            color: #0d6efd;
+        }
+        .menu-icon {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        .school-info {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,.04);
+        }
+        .school-logo {
+            max-height: 60px;
+            max-width: 100%;
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0,0,0,.1);
+            z-index: 1000;
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .bottom-nav {
+                display: flex;
+            }
+            .container {
+                margin-bottom: 70px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="text-white">Attendance Records</h2>
-            <button id="exportBtn" class="btn btn-success">Export to CSV</button>
-            <button class="btn btn-success"><a href="./dashboard.php">Back to Home</a></button>
+            <h2 style="color:rgb(61, 41, 196); font-weight: 700; margin: 0;">Attendance Records</h2>
+            <div class="d-flex gap-2">
+                <button id="exportBtn" class="btn btn-success">
+                    <i class="fas fa-download"></i> Export to CSV
+                </button>
+                <a href="./dashboard.php" class="btn btn-success">
+                    <i class="fas fa-home"></i> Back to Home
+                </a>
+            </div>
         </div>
         
         <div class="filters">

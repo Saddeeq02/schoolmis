@@ -18,24 +18,33 @@ if ($_SESSION['role'] !== 'admin') {
     exit;
 }
 
-// Get school details for the current school
-$schoolId = $_SESSION['school_id'] ?? 1;
-$stmt = $pdo->prepare("SELECT * FROM schools WHERE id = ?");
-$stmt->execute([$schoolId]);
-$school = $stmt->fetch();
+// Get all schools
+$stmt = $pdo->query("SELECT id, name, border_color, logo_path FROM schools ORDER BY name");
+$schools = $stmt->fetchAll();
 
-if (!$school) {
-    $_SESSION['error'] = "School not found";
-    header("Location: admin_qr_generator.php");
-    exit;
+// Get selected school details
+$selectedSchoolId = $_POST['school_id'] ?? ($_SESSION['school_id'] ?? null);
+$selectedSchool = null;
+
+if ($selectedSchoolId) {
+    foreach ($schools as $school) {
+        if ($school['id'] == $selectedSchoolId) {
+            $selectedSchool = $school;
+            break;
+        }
+    }
 }
 
 // Handle QR generation
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['school_id'])) {
     try {
+        if (!$selectedSchool) {
+            throw new Exception("Please select a school first");
+        }
+
         // Generate unique QR data
         $qr_data = json_encode([
-            'school_name' => $school['name'],
+            'school_name' => $selectedSchool['name'],
             'created_at' => date('Y-m-d H:i:s'),
             'type' => 'attendance',
             'unique_id' => uniqid('qr_', true)
@@ -48,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Save QR data to database first
         $stmt = $pdo->prepare("INSERT INTO qr_codes (school_name, qr_data, created_by) VALUES (?, ?, ?)");
-        if (!$stmt->execute([$school['name'], $qr_data, $_SESSION['user_id']])) {
+        if (!$stmt->execute([$selectedSchool['name'], $qr_data, $_SESSION['user_id']])) {
             throw new Exception("Failed to save QR code data to database");
         }
         
@@ -63,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Use school name in filename
-        $safeName = preg_replace('/[^a-z0-9]+/', '_', strtolower($school['name']));
+        $safeName = preg_replace('/[^a-z0-9]+/', '_', strtolower($selectedSchool['name']));
         $filename = $qr_dir . "/attendance_" . $safeName . "_" . $qr_id . ".png";
         
         // Save using dataUrl
@@ -93,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Generate QR Code - <?= htmlspecialchars($school['name']) ?></title>
+    <title>Generate QR Code - School Management System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/clean-styles.css">
@@ -118,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-align: center;
             margin-bottom: 2rem;
             padding: 2rem;
-            background: <?= $school['border_color'] ?? '#3366cc' ?>;
+            background: <?= $selectedSchool['border_color'] ?? '#3366cc' ?>;
             color: white;
             border-radius: 8px;
         }
@@ -138,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: start;
         }
         .step-number {
-            background: <?= $school['border_color'] ?? '#3366cc' ?>;
+            background: <?= $selectedSchool['border_color'] ?? '#3366cc' ?>;
             color: white;
             width: 30px;
             height: 30px;
@@ -148,16 +157,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 50%;
             flex-shrink: 0;
         }
+        .select-school {
+            max-width: 400px;
+            margin: 0 auto 2rem;
+        }
     </style>
 </head>
 <body>
     <div class="container mt-5">
         <div class="school-header">
-            <?php if (!empty($school['logo_path'])): ?>
-                <img src="../<?= htmlspecialchars($school['logo_path']) ?>" alt="School Logo" class="school-logo">
-            <?php endif; ?>
-            <h1><?= htmlspecialchars($school['name']) ?></h1>
-            <p class="mb-0">Attendance QR Code Generator</p>
+            <h1>School Attendance QR Code Generator</h1>
+            <p class="mb-0">Select a school and generate attendance QR code</p>
         </div>
         
         <?php if (isset($_SESSION['error'])): ?>
@@ -166,6 +176,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
+
+        <div class="select-school">
+            <form method="POST" class="card" id="schoolForm">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="school_id" class="form-label">Select School</label>
+                        <select name="school_id" id="school_id" class="form-select" required onchange="this.form.submit()">
+                            <option value="">Choose a school...</option>
+                            <?php foreach ($schools as $school): ?>
+                                <option value="<?= $school['id'] ?>" <?= ($selectedSchoolId == $school['id']) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($school['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php if ($selectedSchoolId && !isset($_SESSION['qr_generated'])): ?>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-qrcode"></i> Generate QR Code
+                        </button>
+                    <?php endif; ?>
+                </div>
+            </form>
+        </div>
 
         <?php if (isset($_SESSION['qr_generated'])): ?>
             <div class="qr-container">
@@ -204,18 +237,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <?php unset($_SESSION['qr_generated']); ?>
             <?php unset($_SESSION['qr_filename']); ?>
-        <?php endif; ?>
-        
-        <?php if (!isset($_SESSION['qr_generated'])): ?>
-            <div class="card">
-                <div class="card-body">
-                    <form method="POST" class="mt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-qrcode"></i> Generate New QR Code
-                        </button>
-                    </form>
-                </div>
-            </div>
         <?php endif; ?>
     </div>
 

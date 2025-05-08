@@ -80,25 +80,52 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
         .results-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 10px;
+            margin-bottom: 3mm;
+            font-size: 9pt;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
+
         .results-table th, .results-table td {
-            padding: 5px;
-            border: 1px solid #ddd;
+            padding: 2mm;
+            border: 0.5pt solid #DEB887;
             text-align: left;
         }
+
         .results-table th {
-            background-color: <?= $borderColor ?> !important;
+            background: linear-gradient(135deg, #8B4513, #A0522D) !important;
             color: white !important;
-            font-weight: bold;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 8.5pt;
+            letter-spacing: 0.2mm;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
-        .results-table tr:nth-child(even) {
-            background-color: #f9f9f9;
+
+        .results-table tbody tr:nth-child(even) {
+            background-color: #FFF8F3;
         }
-        .grade {
-            font-weight: bold;
+
+        .results-table tbody td {
+            color: #1A1A1A;
         }
+
+        .results-table .grade {
+            font-weight: 600;
+            color: #8B4513;
+        }
+
+        .results-table tfoot tr {
+            border-top: 1pt solid #8B4513;
+        }
+
+        .results-table tfoot th {
+            background: #FFF8F3 !important;
+            color: #1A1A1A !important;
+            font-weight: 600;
+        }
+
         .print-button {
             display: block;
             margin: 20px auto;
@@ -125,19 +152,28 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
             gap: 20px;
         }
         .skills-table {
-            width: 48%;
+            width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
+            font-size: 8.5pt;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
+
         .skills-table th, .skills-table td {
-            padding: 5px;
-            border: 1px solid #ddd;
+            padding: 1.5mm;
+            border: 0.5pt solid #DEB887;
             text-align: left;
         }
+
         .skills-table th {
-            background-color: <?= $borderColor ?> !important;
+            background: linear-gradient(135deg, #8B4513, #A0522D) !important;
             color: white !important;
-            font-weight: bold;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 8pt;
+            letter-spacing: 0.2mm;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         h4, h3, h2 {
             margin: 5px 0;

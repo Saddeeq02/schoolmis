@@ -1261,4 +1261,49 @@ function checkExamHasScores($pdo, $examId) {
     }
 }
 
+// Function to convert timestamp to West African Time (WAT)
+function convertToWAT($timestamp = null) {
+    if ($timestamp === null) {
+        $timestamp = time();
+    } else if (is_string($timestamp)) {
+        $timestamp = strtotime($timestamp);
+    }
+    
+    $dt = new DateTime();
+    $dt->setTimestamp($timestamp);
+    $dt->setTimezone(new DateTimeZone('Africa/Lagos'));
+    return $dt;
+}
+
+// Function to format timestamp in WAT
+function formatWAT($timestamp = null, $format = 'Y-m-d H:i:s') {
+    return convertToWAT($timestamp)->format($format);
+}
+
+// Function to get current WAT timestamp
+function getCurrentWAT($format = 'Y-m-d H:i:s') {
+    return formatWAT(time(), $format);
+}
+
+// Function to format relative time in WAT
+function formatRelativeTime($timestamp) {
+    $now = convertToWAT();
+    $activityTime = convertToWAT($timestamp);
+    $diff = $now->diff($activityTime);
+
+    if ($diff->y > 0) {
+        return $diff->y . " year" . ($diff->y > 1 ? "s" : "") . " ago";
+    } elseif ($diff->m > 0) {
+        return $diff->m . " month" . ($diff->m > 1 ? "s" : "") . " ago";
+    } elseif ($diff->d > 0) {
+        return $diff->d . " day" . ($diff->d > 1 ? "s" : "") . " ago";
+    } elseif ($diff->h > 0) {
+        return $diff->h . " hour" . ($diff->h > 1 ? "s" : "") . " ago";
+    } elseif ($diff->i > 0) {
+        return $diff->i . " minute" . ($diff->i > 1 ? "s" : "") . " ago";
+    } else {
+        return "Just now";
+    }
+}
+
 ?>

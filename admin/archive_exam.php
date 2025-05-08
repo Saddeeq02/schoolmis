@@ -4,24 +4,71 @@ include '../includes/db.php';
 
 // Verify admin role
 if ($_SESSION['role'] != 'admin') {
-    header("Location: ../index.php");
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
     exit();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json'); // Set content type before any output
+    
     try {
-        $exam_id = $_POST['exam_id'];
+        if (!isset($_POST['exam_id']) || !isset($_POST['action'])) {
+            throw new Exception('Missing required parameters');
+        }
+        
+        $exam_id = (int)$_POST['exam_id'];
         $action = $_POST['action']; // 'archive' or 'unarchive'
         
-        // Update exam archived status
-        $stmt = $pdo->prepare("UPDATE exams SET archived = ? WHERE id = ?");
-        $isArchived = ($action === 'archive') ? 1 : 0;
-        $stmt->execute([$isArchived, $exam_id]);
+        if (!in_array($action, ['archive', 'unarchive'])) {
+            throw new Exception('Invalid action specified');
+        }
         
-        header('Content-Type: application/json');
+        // Start transaction
+        $pdo->beginTransaction();
+        
+        // Check if exam exists
+        $stmt = $pdo->prepare("SELECT title, class_id FROM exams WHERE id = ? AND school_id = ?");
+        $stmt->execute([$exam_id, $_SESSION['school_id']]);
+        $exam = $stmt->fetch();
+        
+        if (!$exam) {
+            throw new Exception('Exam not found');
+        }
+        
+        // Check if there's already an active exam with same title when unarchiving
+        if ($action === 'unarchive') {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) FROM exams 
+                WHERE title = ? 
+                AND class_id = ? 
+                AND archived = 0 
+                AND id != ? 
+                AND school_id = ?
+            ");
+            $stmt->execute([$exam['title'], $exam['class_id'], $exam_id, $_SESSION['school_id']]);
+            if ($stmt->fetchColumn() > 0) {
+                throw new Exception('An active exam with the same title already exists for this class');
+            }
+        }
+        
+        // Update exam archived status
+        $stmt = $pdo->prepare("UPDATE exams SET archived = ?, archived_at = ? WHERE id = ? AND school_id = ?");
+        $isArchived = ($action === 'archive') ? 1 : 0;
+        $archivedAt = ($action === 'archive') ? date('Y-m-d H:i:s') : null;
+        $stmt->execute([$isArchived, $archivedAt, $exam_id, $_SESSION['school_id']]);
+        
+        if ($stmt->rowCount() === 0) {
+            throw new Exception('Failed to update exam status');
+        }
+        
+        $pdo->commit();
         echo json_encode(['success' => true, 'message' => 'Exam ' . ($isArchived ? 'archived' : 'unarchived') . ' successfully']);
+        
     } catch (Exception $e) {
-        header('Content-Type: application/json');
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
     exit();
@@ -35,11 +82,11 @@ $stmt = $pdo->prepare("
     JOIN classes c ON e.class_id = c.id
     WHERE e.school_id = ? 
     GROUP BY e.id, e.title, e.session, e.term, e.class_id, e.archived, e.created_at, c.class_name
-    ORDER BY e.archived ASC, e.created_at DESC");
+    ORDER BY e.archived ASC, e.created_at DESC
+");
 $stmt->execute([$_SESSION['school_id']]);
 $exams = $stmt->fetchAll();
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -47,7 +94,6 @@ $exams = $stmt->fetchAll();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../assets/clean-styles.css">
-
 </head>
 <body>
     <div class="container mt-4">
@@ -113,7 +159,12 @@ $exams = $stmt->fetchAll();
             },
             body: `exam_id=${examId}&action=${action}`
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 location.reload();
@@ -123,7 +174,7 @@ $exams = $stmt->fetchAll();
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred. Please try again.');
+            alert('An error occurred while processing your request. Please try again.');
         });
     }
     </script>
