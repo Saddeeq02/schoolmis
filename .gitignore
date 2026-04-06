@@ -1,6 +1,6 @@
 
 # Configuration files
-includes/config.php
+# includes/config.php
 
 # Recordings directory
 recordings/*
