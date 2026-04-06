@@ -1,11 +1,20 @@
 <?php
+// Add output buffering at the very start
+ob_start();
+
 require_once '../includes/config.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
 
+// Ensure session is started properly
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Check if user is logged in and is an admin
 if (!isLoggedIn() || !isAdmin()) {
+    ob_end_clean();
     header('Location: ../login.php');
     exit;
 }
@@ -15,7 +24,7 @@ $schoolId = $_SESSION['school_id'] ?? 1;
 // Get all classes for the current school
 $classesStmt = $pdo->prepare("SELECT id, class_name FROM classes WHERE school_id = ? ORDER BY class_name");
 $classesStmt->execute([$schoolId]);
-$classes = $classesStmt->fetchAll();
+$classes = $classesStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $errors = [];
 $success = false;
@@ -83,14 +92,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $pdo->commit();
             
+            // Set session message
             $_SESSION['message'] = 'Exam created successfully';
             $_SESSION['message_type'] = 'success';
+            
+            // Clear output buffer and redirect
+            ob_end_clean();
             header('Location: exam_components.php?id=' . $examId);
-            exit;
+            exit();
             
         } catch (PDOException $e) {
             $pdo->rollBack();
-            $errors[] = 'Error creating exam. Please try again.';
+            $errors[] = 'Error creating exam: ' . $e->getMessage();
+            // For debugging only - remove in production
+            error_log('Database error: ' . $e->getMessage());
         }
     }
 }
@@ -182,7 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <ul class="mb-0">
                         <?php foreach ($errors as $error): ?>
-                        <li><?php echo $error; ?></li>
+                        <li><?php echo htmlspecialchars($error); ?></li>
                         <?php endforeach; ?>
                     </ul>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -246,3 +261,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+<?php ob_end_flush(); ?>

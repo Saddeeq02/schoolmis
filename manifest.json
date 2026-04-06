@@ -1,7 +1,7 @@
 {
-    "name": "School Management Information System",
-    "short_name": "SchoolMIS",
-    "description": "School Management System for Teachers and Administrators",
+    "name": "Topspring Gems Comprehensive School",
+    "short_name": "TGCS: SMIS",
+    "description": "Premium School Management System for Topspring Gems",
     "start_url": "/teacher/dashboard.php",
     "display": "standalone",
     "background_color": "#4A90E2",

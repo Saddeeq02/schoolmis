@@ -1,10 +1,15 @@
 <?php
+ob_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../components/school_selector.php';
 
 requireAdmin();
 
+// Ensure session is started properly
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 // Get current school_id from session or default to first school
 $currentSchoolId = $_SESSION['school_id'] ?? null;
 

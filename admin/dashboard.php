@@ -127,7 +127,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - School MIS</title>
+    <title>Admin Dashboard - BI: SMIS</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -208,7 +208,7 @@ try {
     <nav class="navbar navbar-expand-lg navbar-light sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="dashboard.php">
-                <i class="fas fa-school me-2"></i>School MIS
+                <i class="fas fa-school me-2"></i>BI:SMIS
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -552,5 +552,10 @@ try {
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p>&copy; <?php echo date('Y'); ?><a href="https://brainiax.com.ng"> Brainiacs Innovation School Management Information System</a></p>
+        </div>
+    </footer>
 </body>
 </html>

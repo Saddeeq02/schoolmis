@@ -1,11 +1,11 @@
 /* Clean, Mobile-First Styles */
 :root {
   /* Colors with better contrast */
-  --primary: #0052cc;
-  --primary-dark: #003d99;
-  --primary-light: #4d88ff;
-  --secondary: #00875a;
-  --secondary-dark: #006644;
+  --primary: #2ecc71;
+  --primary-dark: #27ae60;
+  --primary-light: #58d68d;
+  --secondary: #2c3e50;
+  --secondary-dark: #1b2631;
   --success: #36b37e;
   --danger: #de350b;
   --warning: #ff991f;

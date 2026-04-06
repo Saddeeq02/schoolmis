@@ -1,13 +1,13 @@
 :root {
     /* Primary color palette */
-    --primary-color: #4a91e2;
-    --primary-light: #6ba5e9;
-    --primary-dark: #3a7bc8;
+    --primary-color: #2ecc71; /* Emerald Green for Gems */
+    --primary-light: #58d68d;
+    --primary-dark: #27ae60;
   
     /* Secondary color palette */
-    --secondary-color: #67b26f;
-    --secondary-light: #7fc287;
-    --secondary-dark: #539a5b;
+    --secondary-color: #2c3e50; /* Deep Blue for Professionals */
+    --secondary-light: #4c5d6e;
+    --secondary-dark: #1b2631;
   
     /* Neutral colors */
     --background: #f8f9fa;

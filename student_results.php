@@ -68,6 +68,10 @@ $traits = ['Punctuality', 'Neatness', 'Leadership', 'Honesty', 'Cooperation'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Results</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        <link rel="stylesheet" href="assets/css/modern.css">
+    <link rel="stylesheet" href="assets/clean-styles.css">
+        <link rel="icon" href="4.png" type="image/x-icon">
+
     <style>
         @page {
             size: A4 portrait;

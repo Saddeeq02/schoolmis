@@ -79,17 +79,17 @@ $examCount = $stmt->fetch()['exam_count'];
     
     <style>
         :root {
-            --primary: #4361ee;
-            --primary-light: #e0e7ff;
-            --secondary: #3f37c9;
-            --success: #4cc9f0;
-            --warning: #f8961e;
-            --danger: #f72585;
+            --primary: #2ecc71;
+            --primary-light: #e0f9ec;
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --warning: #f1c40f;
+            --danger: #e74c3c;
             --light: #f8f9fa;
-            --dark: #212529;
+            --dark: #2c3e50;
             --gray: #6c757d;
             --white: #ffffff;
-            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             --transition: all 0.3s ease;
         }
 
@@ -439,7 +439,7 @@ $examCount = $stmt->fetch()['exam_count'];
         <div class="header">
             <div>
                 <h1>Teacher Dashboard</h1>
-                <p><?= htmlspecialchars($school['name'] ?? 'School') ?></p>
+                <p>Topspring Gems Comprehensive School</p>
             </div>
             <div class="user-info">
                 <span class="user-name"><?= htmlspecialchars($teacherName) ?></span>
@@ -626,5 +626,10 @@ $examCount = $stmt->fetch()['exam_count'];
             document.getElementById('installContainer').style.display = 'none';
         }
     </script>
+        <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p>&copy; <?php echo date('Y'); ?><a href="https://brainiax.com.ng"> Brainiacs Innovation School Management Information System</a></p>
+        </div>
+    </footer>
 </body>
 </html>

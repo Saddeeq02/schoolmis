@@ -1,4 +1,6 @@
 <?php
+ob_start();
+
 require_once '../includes/config.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
@@ -9,7 +11,10 @@ if (!isLoggedIn() || !isAdmin()) {
     header('Location: ../login.php');
     exit;
 }
-
+// Ensure session is started properly
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
 // Check if exam ID is provided
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['exam_id']) || empty($_POST['exam_id'])) {
     $_SESSION['message'] = 'Invalid request';

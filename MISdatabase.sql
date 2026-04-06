@@ -21,6 +21,7 @@ SET time_zone = "+00:00";
 -- Database: `sadik_app`
 --
 
+DROP PROCEDURE IF EXISTS `MigrateToMultiSchool`;
 DELIMITER $$
 --
 -- Procedures

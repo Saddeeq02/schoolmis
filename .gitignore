@@ -9,6 +9,15 @@ recordings/*
 # Logs
 error.log
 *.log
+*error_log
+admin/error_log
+teacher/error_log
+
+# Temporary/Sensitive Scripts
+reset_passwords.php
+test_db_conn.php
+transfer_school_schema.php
+update_school_schema.php
 
 # Environment files
 .env

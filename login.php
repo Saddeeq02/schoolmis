@@ -43,10 +43,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - School MIS</title>
+    <title>Login - BI-SMIS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="assets/css/modern.css">
         <script src="assets/scripts.js"></script>
+            <link rel="icon" href="4.png" type="image/x-icon">
 
     <style>
         body {
@@ -120,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- Brand Header -->
         <div class="brand">
             <i class="fas fa-graduation-cap brand-icon"></i>
-            <h1>BI: School MIS</h1>
+            <h1>Topspring Gems Comprehensive School - BI:SMIS</h1>
         </div>
         
         <!-- Login Form -->
@@ -128,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <h2 class="text-center mb-4">Login to Your Account</h2>
             
             <?php if ($error): ?>
-                <div class="alert alert-danger mb-4">
+                <div class="alert alert-info mb-4">
                     <?= htmlspecialchars($error) ?>
                 </div>
             <?php endif; ?>

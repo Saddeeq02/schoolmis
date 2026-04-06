@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../includes/config.php';
@@ -15,6 +14,37 @@ requireAdmin();
 $schoolId = $_SESSION['school_id'] ?? 1;
 $success = '';
 $error = '';
+
+// Handle teacher deletion
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_teacher'])) {
+    $teacherId = $_POST['teacher_id'];
+    
+    try {
+        // First check if teacher has any assignments or scores
+        $checkStmt = $pdo->prepare("
+            SELECT 
+                (SELECT COUNT(*) FROM teacher_subjects WHERE teacher_id = ?) as assignments_count,
+                (SELECT COUNT(*) FROM student_scores WHERE created_by = ?) as scores_count
+        ");
+        $checkStmt->execute([$teacherId, $teacherId]);
+        $counts = $checkStmt->fetch();
+        
+        if ($counts['assignments_count'] > 0 || $counts['scores_count'] > 0) {
+            $error = "Cannot delete teacher: They have existing assignments or scores. Please remove all assignments and scores first.";
+        } else {
+            // Proceed with deletion
+            $stmt = $pdo->prepare("DELETE FROM users WHERE id = ? AND role = 'teacher'");
+            if ($stmt->execute([$teacherId])) {
+                $success = "Teacher deleted successfully";
+            } else {
+                $error = "Failed to delete teacher";
+            }
+        }
+    } catch (PDOException $e) {
+        $error = "Error deleting teacher";
+        error_log($e->getMessage());
+    }
+}
 
 // Handle school assignment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_school'])) {
@@ -44,10 +74,13 @@ try {
     $schools = [];
 }
 
-// Fetch teachers with school information and filter by school if selected
+// Fetch teachers with school information and additional counts
 try {
     $query = "
-        SELECT u.*, s.name as school_name 
+        SELECT u.*, 
+               s.name as school_name,
+               (SELECT COUNT(*) FROM teacher_subjects WHERE teacher_id = u.id) as assignments_count,
+               (SELECT COUNT(*) FROM student_scores WHERE created_by = u.id) as scores_count
         FROM users u 
         LEFT JOIN schools s ON u.school_id = s.id 
         WHERE u.role = 'teacher'";
@@ -117,9 +150,45 @@ try {
             width: 100%;
             max-width: 500px;
         }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+        }
+        .delete-btn:hover {
+            background-color: #bb2d3b;
+        }
+        .delete-btn:disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        .teacher-stats {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+        .alert-stack {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1100;
+            max-width: 400px;
+        }
+        .alert-stack .alert {
+            margin-bottom: 0.5rem;
+            animation: slideInRight 0.3s ease-out;
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
+    <!-- Alert Stack -->
+    <div class="alert-stack" id="alertStack"></div>
+
     <div class="container">
         <!-- Header -->
         <div class="card mb-4">
@@ -130,16 +199,26 @@ try {
                         <i class="fas fa-arrow-left"></i>
                         <span class="d-none d-md-inline ml-2">Back</span>
                     </a>
+                    <button class="btn" onclick="window.location.href='add_teacher.php'">
+                       <i class="fas fa-plus"></i>
+                       <span class="d-none d-md-inline ml-2">Add Teacher</span>
+                   </button>
                 </div>
             </div>
         </div>
 
         <?php if ($success): ?>
-            <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="fas fa-check-circle"></i> <?= htmlspecialchars($success) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         <?php endif; ?>
 
         <?php if ($error): ?>
-            <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($error) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
         <?php endif; ?>
 
         <!-- Filter -->
@@ -173,12 +252,16 @@ try {
                                     <i class="fas fa-school"></i>
                                     <?= htmlspecialchars($teacher['school_name'] ?? 'Not Assigned') ?>
                                 </p>
+                                <div class="teacher-stats">
+                                    <span><i class="fas fa-book"></i> <?= $teacher['assignments_count'] ?> assignments</span>
+                                    <span class="ms-2"><i class="fas fa-chart-bar"></i> <?= $teacher['scores_count'] ?> scores</span>
+                                </div>
                             </div>
                             <div class="d-flex gap-2">
                                 <button onclick="showAssignSchool(<?= htmlspecialchars(json_encode($teacher)) ?>)" 
                                         class="btn btn-sm">
                                     <i class="fas fa-building"></i>
-                                    <span class="d-none d-md-inline">Assign School</span>
+                                    <span class="d-none d-md-inline">School</span>
                                 </button>
                                 <a href="teacher_subjects.php?teacher_id=<?= $teacher['id'] ?>" class="btn btn-sm">
                                     <i class="fas fa-book"></i>
@@ -188,6 +271,12 @@ try {
                                     <i class="fas fa-video"></i>
                                     <span class="d-none d-md-inline">Recordings</span>
                                 </a>
+                                <button onclick="showDeleteConfirm(<?= htmlspecialchars(json_encode($teacher)) ?>)" 
+                                        class="btn btn-sm delete-btn"
+                                        <?= ($teacher['assignments_count'] > 0 || $teacher['scores_count'] > 0) ? 'disabled' : '' ?>
+                                        title="<?= ($teacher['assignments_count'] > 0 || $teacher['scores_count'] > 0) ? 'Cannot delete: Teacher has assignments or scores' : 'Delete teacher' ?>">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -227,15 +316,51 @@ try {
                 </div>
 
                 <div class="d-flex justify-content-end gap-2">
-                    <button type="button" onclick="hideModal()" class="btn">Cancel</button>
+                    <button type="button" onclick="hideModal('assignSchoolModal')" class="btn">Cancel</button>
                     <button type="submit" name="assign_school" class="btn btn-primary">Assign School</button>
                 </div>
             </form>
         </div>
     </div>
- <!-- Bottom Navigation for Mobile -->
- <div class="bottom-nav py-2 px-3 justify-content-around">
-        <a href="dashboard.php" class="btn btn-sm btn-light active">
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal" id="deleteConfirmModal">
+        <div class="modal-content">
+            <h2 class="mb-4">Confirm Delete</h2>
+            <form method="post" id="deleteForm">
+                <input type="hidden" name="teacher_id" id="deleteTeacherId">
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Are you sure you want to delete this teacher?
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Teacher</label>
+                    <p id="deleteTeacherName" class="fw-bold"></p>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <p id="deleteTeacherEmail"></p>
+                </div>
+
+                <div id="deleteWarning" class="alert alert-danger" style="display: none;">
+                    <i class="fas fa-ban"></i>
+                    This teacher has assignments or scores and cannot be deleted.
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <button type="button" onclick="hideModal('deleteConfirmModal')" class="btn">Cancel</button>
+                    <button type="submit" name="delete_teacher" class="btn delete-btn">Delete Teacher</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation for Mobile -->
+    <div class="bottom-nav py-2 px-3 justify-content-around">
+        <a href="dashboard.php" class="btn btn-sm btn-light">
             <i class="fas fa-home d-block text-center mb-1"></i>
             <small>Home</small>
         </a>
@@ -243,7 +368,7 @@ try {
             <i class="fas fa-user-graduate d-block text-center mb-1"></i>
             <small>Students</small>
         </a>
-        <a href="teachers_list.php" class="btn btn-sm btn-light">
+        <a href="teachers_list.php" class="btn btn-sm btn-light active">
             <i class="fas fa-chalkboard-teacher d-block text-center mb-1"></i>
             <small>Teachers</small>
         </a>
@@ -340,6 +465,8 @@ try {
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function showAssignSchool(teacher) {
             document.getElementById('teacherId').value = teacher.id;
@@ -348,16 +475,52 @@ try {
             document.getElementById('assignSchoolModal').classList.add('active');
         }
         
-        function hideModal() {
-            document.getElementById('assignSchoolModal').classList.remove('active');
+        function showDeleteConfirm(teacher) {
+            document.getElementById('deleteTeacherId').value = teacher.id;
+            document.getElementById('deleteTeacherName').textContent = teacher.name;
+            document.getElementById('deleteTeacherEmail').textContent = teacher.email;
+            
+            // Show warning if teacher has assignments or scores
+            const hasData = teacher.assignments_count > 0 || teacher.scores_count > 0;
+            document.getElementById('deleteWarning').style.display = hasData ? 'block' : 'none';
+            document.querySelector('#deleteForm button[type="submit"]').disabled = hasData;
+            
+            document.getElementById('deleteConfirmModal').classList.add('active');
+        }
+        
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
         }
         
         // Close modal when clicking outside
-        document.getElementById('assignSchoolModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                hideModal();
-            }
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('active');
+                }
+            });
         });
+        
+        function showAlert(message, type = 'info') {
+            const alertHtml = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            
+            const alertStack = document.getElementById('alertStack');
+            alertStack.insertAdjacentHTML('beforeend', alertHtml);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                const alert = alertStack.lastElementChild;
+                if (alert) {
+                    alert.classList.remove('show');
+                    setTimeout(() => alert.remove(), 300);
+                }
+            }, 5000);
+        }
     </script>
 </body>
 </html>

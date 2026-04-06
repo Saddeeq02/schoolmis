@@ -10,7 +10,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/clean-styles.css">
+    <link rel="stylesheet" href="assets/styles.css">
+        <link rel="icon" href="4.png" type="image/x-icon">
+
     <script src="assets/scripts.js"></script>
     <style>
         .install-prompt {

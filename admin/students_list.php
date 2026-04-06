@@ -241,7 +241,7 @@ if (isset($_SESSION['message'])) {
                         <div class="student-header">
                             <div>
                                 <h3 class="mb-0"><?php echo htmlspecialchars($student['name']); ?></h3>
-                                <small class="text-light"><?php echo htmlspecialchars($student['admission_number']); ?></small>
+                                <small class="text"><?php echo htmlspecialchars($student['admission_number']); ?></small>
                             </div>
                             <div class="student-actions">
                                 <a href="edit_student.php?id=<?php echo $student['id']; ?>" class="btn btn-sm">
@@ -254,7 +254,7 @@ if (isset($_SESSION['message'])) {
                             </div>
                         </div>
                         <div class="student-info">
-                            <div class="text-light">
+                            <div class="text">
                                 <i class="fas fa-graduation-cap"></i>
                                 Class: <?php echo htmlspecialchars($student['class_name'] ?? 'Not Assigned'); ?>
                             </div>
