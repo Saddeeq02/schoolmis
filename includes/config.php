@@ -1,10 +1,19 @@
 <?php
 // Database Configuration
-define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_PORT', getenv('DB_PORT') ?: '3306');
-define('DB_NAME', getenv('DB_NAME') ?: 'sadik_app');
-define('DB_USER', getenv('DB_USER') ?: 'school_user');
-define('DB_PASS', getenv('DB_PASS') ?: 'school_pass');
+if ($dbUrl = getenv('MYSQL_URL') ?: getenv('DATABASE_URL')) {
+    $parts = parse_url($dbUrl);
+    define('DB_HOST', $parts['host']);
+    define('DB_PORT', $parts['port'] ?? '3306');
+    define('DB_NAME', ltrim($parts['path'], '/'));
+    define('DB_USER', $parts['user']);
+    define('DB_PASS', $parts['pass']);
+} else {
+    define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+    define('DB_PORT', getenv('DB_PORT') ?: '3306');
+    define('DB_NAME', getenv('DB_NAME') ?: 'sadik_app');
+    define('DB_USER', getenv('DB_USER') ?: 'school_user');
+    define('DB_PASS', getenv('DB_PASS') ?: 'school_pass');
+}
 
 // Application Configuration
 define('APP_NAME', 'TGCS School Management System');
