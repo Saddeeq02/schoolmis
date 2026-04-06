@@ -3,15 +3,6 @@ require_once '../includes/db.php';
 require_once '../includes/auth.php';
 require_once '../vendor/autoload.php';
 
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\Writer\PngWriter;
-use Endroid\QrCode\Color\Color;
-use Endroid\QrCode\Label\Label;
-use Endroid\QrCode\Writer\ValidationException;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
-use BaconQrCode\Writer;
-
 // Verify admin role
 if ($_SESSION['role'] !== 'admin') {
     header("Location: ../unauthorized.php");
@@ -35,83 +26,58 @@ if ($selectedSchoolId) {
     }
 }
 
-// Handle QR generation
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['school_id'])) {
+// Handle QR logging (data is now generated on client, but we log the intent/request)
+$qrDataForJS = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['school_id']) && isset($_POST['generate'])) {
     try {
         if (!$selectedSchool) {
             throw new Exception("Please select a school first");
         }
 
-        // Generate unique QR data
-        $qr_data = json_encode([
+        // Prepare unique QR data for JS
+        $qrDataArray = [
             'school_name' => $selectedSchool['name'],
             'created_at' => date('Y-m-d H:i:s'),
             'type' => 'attendance',
             'unique_id' => uniqid('qr_', true)
-        ]);
+        ];
+        $qrDataForJS = json_encode($qrDataArray);
 
-        // Create QR code with basic configuration
-        $qrCode = new QrCode($qr_data);
-        $writer = new PngWriter();
-        $result = $writer->write($qrCode);
-
-        // Save QR data to database first
+        // Save QR data to database
         $stmt = $pdo->prepare("INSERT INTO qr_codes (school_name, qr_data, created_by) VALUES (?, ?, ?)");
-        if (!$stmt->execute([$selectedSchool['name'], $qr_data, $_SESSION['user_id']])) {
+        if (!$stmt->execute([$selectedSchool['name'], $qrDataForJS, $_SESSION['user_id']])) {
             throw new Exception("Failed to save QR code data to database");
         }
         
-        $qr_id = $pdo->lastInsertId();
-        
-        // Create qr_codes directory if it doesn't exist
-        $qr_dir = dirname(__DIR__) . "/qr_codes";
-        if (!file_exists($qr_dir)) {
-            if (!mkdir($qr_dir, 0755, true)) {
-                throw new Exception("Failed to create QR codes directory");
-            }
-        }
-        
-        // Use school name in filename
-        $safeName = preg_replace('/[^a-z0-9]+/', '_', strtolower($selectedSchool['name']));
-        $filename = $qr_dir . "/attendance_" . $safeName . "_" . $qr_id . ".png";
-        
-        // Save using dataUrl
-        $dataUri = $result->getDataUri();
-        $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $dataUri));
-        
-        if (file_put_contents($filename, $imageData) === false) {
-            throw new Exception("Failed to save QR code image");
-        }
-        
-        chmod($filename, 0644);
-        
-        $_SESSION['qr_generated'] = true;
-        $_SESSION['qr_filename'] = "qr_codes/attendance_" . $safeName . "_" . $qr_id . ".png";
-        
-        header("Location: admin_qr_generator.php");
-        exit;
     } catch (Exception $e) {
-        error_log("QR Generation Error: " . $e->getMessage());
-        $_SESSION['error'] = "Error generating QR code: " . $e->getMessage();
-        header("Location: admin_qr_generator.php");
-        exit;
+        error_log("QR Logging Error: " . $e->getMessage());
+        $_SESSION['error'] = "Error preparing QR code: " . $e->getMessage();
     }
 }
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Generate QR Code - School Management System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="../assets/clean-styles.css">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate QR Code - School Management System</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/clean-styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- QRCode.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    
     <style>
         .qr-container {
-            display: flex;
+            display: none;
             gap: 2rem;
             align-items: start;
+            margin-top: 2rem;
+        }
+        .qr-container.active {
+            display: flex;
         }
         .qr-code-section {
             flex: 1;
@@ -127,13 +93,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['school_id'])) {
             text-align: center;
             margin-bottom: 2rem;
             padding: 2rem;
-            background: <?= $selectedSchool['border_color'] ?? '#3366cc' ?>;
+            background: var(--primary); /* Use Emerald Green */
             color: white;
             border-radius: 8px;
         }
-        .school-logo {
-            max-width: 100px;
+        #qrcode-canvas {
+            display: inline-block;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 1rem;
+        }
+        #qrcode-canvas img {
+            margin: 0 auto;
         }
         .download-btn {
             margin-top: 1rem;
@@ -147,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['school_id'])) {
             align-items: start;
         }
         .step-number {
-            background: <?= $selectedSchool['border_color'] ?? '#3366cc' ?>;
+            background: var(--primary);
             color: white;
             width: 30px;
             height: 30px;
@@ -159,15 +132,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['school_id'])) {
         }
         .select-school {
             max-width: 400px;
-            margin: 0 auto 2rem;
+            margin: 0 auto;
         }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="school-header">
+    <div class="container mt-5 mb-5">
+        <div class="school-header mb-4">
             <h1>School Attendance QR Code Generator</h1>
-            <p class="mb-0">Select a school and generate attendance QR code</p>
+            <p class="mb-0">Powered by Topspring Gems Comprehensive School Identity</p>
         </div>
         
         <?php if (isset($_SESSION['error'])): ?>
@@ -191,7 +164,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['school_id'])) {
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <?php if ($selectedSchoolId && !isset($_SESSION['qr_generated'])): ?>
+                    <?php if ($selectedSchoolId): ?>
+                        <input type="hidden" name="generate" value="1">
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-qrcode"></i> Generate QR Code
                         </button>
@@ -200,46 +174,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['school_id'])) {
             </form>
         </div>
 
-        <?php if (isset($_SESSION['qr_generated'])): ?>
-            <div class="qr-container">
-                <div class="qr-code-section">
-                    <div class="card">
-                        <div class="card-body">
-                            <img src="../<?= $_SESSION['qr_filename'] ?>" alt="QR Code" class="img-fluid mb-3">
-                            <div>
-                                <a href="../<?= $_SESSION['qr_filename'] ?>" download class="btn btn-primary download-btn">
-                                    <i class="fas fa-download"></i> Download QR Code
-                                </a>
-                            </div>
+        <div class="qr-container <?= $qrDataForJS ? 'active' : '' ?>" id="qrOutput">
+            <div class="qr-code-section">
+                <div class="card">
+                    <div class="card-body">
+                        <div id="qrcode-canvas"></div>
+                        <div class="mt-3">
+                            <button onclick="downloadQR()" class="btn btn-primary download-btn">
+                                <i class="fas fa-download"></i> Download QR Code
+                            </button>
                         </div>
                     </div>
                 </div>
-                
-                <div class="instructions-section">
-                    <h3><i class="fas fa-info-circle"></i> Instructions</h3>
-                    <div class="step">
-                        <div class="step-number">1</div>
-                        <div>Download our mobile app from the app store</div>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">2</div>
-                        <div>Open the app and log in with your credentials</div>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">3</div>
-                        <div>Tap on "Scan QR" in the app</div>
-                    </div>
-                    <div class="step">
-                        <div class="step-number">4</div>
-                        <div>Point your camera at this QR code to mark your attendance</div>
-                    </div>
+            </div>
+            
+            <div class="instructions-section">
+                <h3><i class="fas fa-info-circle"></i> Instructions</h3>
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div>Download the TGCS Attendance App</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div>Log in with your teacher/student credentials</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div>Tap on "Scan QR" and point at this code</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div>Your attendance will be logged instantly in the cloud</div>
                 </div>
             </div>
-            <?php unset($_SESSION['qr_generated']); ?>
-            <?php unset($_SESSION['qr_filename']); ?>
-        <?php endif; ?>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Generate QR on client side
+        <?php if ($qrDataForJS): ?>
+        window.addEventListener('load', function() {
+            const qrData = '<?= $qrDataForJS ?>';
+            const qrcode = new QRCode(document.getElementById("qrcode-canvas"), {
+                text: qrData,
+                width: 256,
+                height: 256,
+                colorDark : "#2c3e50",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        });
+        <?php endif; ?>
+
+        function downloadQR() {
+            const qrImg = document.querySelector("#qrcode-canvas img");
+            if (qrImg) {
+                const link = document.createElement("a");
+                link.href = qrImg.src;
+                link.download = "tgcs_attendance_qr.png";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    </script>
 </body>
 </html>

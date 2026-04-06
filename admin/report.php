@@ -24,7 +24,7 @@ try {
     $query = "SELECT u.name, s.name as school_name, a.clock_in, a.clock_out 
               FROM attendance a 
               JOIN users u ON a.user_id = u.id
-              JOIN schools s ON a.school_id = s.id";
+              JOIN schools s ON u.school_id = s.id";
               
     // If teacher, only show their school's records
     if ($_SESSION['role'] === 'teacher') {
@@ -50,8 +50,10 @@ try {
     <title>Attendance Reports</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-
     <link rel="stylesheet" href="../assets/clean-styles.css">
+
+
+    
     <style>
         .recordings-table {
             width: 100%;

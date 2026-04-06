@@ -38,11 +38,11 @@ try {
             AVG(TIMESTAMPDIFF(SECOND, a.clock_in, a.clock_out)) as avg_seconds
         FROM attendance a
         JOIN users u ON a.user_id = u.id
-        JOIN schools s ON a.school_id = s.id
+        JOIN schools s ON u.school_id = s.id
         WHERE a.clock_in >= $dateCondition
     ";
     if ($schoolId > 0) {
-        $attendanceQuery .= " AND a.school_id = :school_id";
+        $attendanceQuery .= " AND u.school_id = :school_id";
     }
     $attendanceQuery .= " GROUP BY u.id, u.name, s.name ORDER BY days_present DESC LIMIT 10";
 
@@ -113,14 +113,16 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-Powered Performance Report</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/clean-styles.css">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary: #4e73df;
-            --secondary: #1cc88a;
-            --accent: #f6c23e;
+            --primary: #2ecc71;
+            --secondary: #27ae60;
+            --accent: #f1c40f;
             --dark: #2c3e50;
             --light: #f8f9fc;
         }
@@ -411,6 +413,8 @@ try {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="../assets/clean-styles.css">
+
     <script>
         // Attendance Chart
         const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');

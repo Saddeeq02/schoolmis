@@ -360,12 +360,23 @@ body.offline .offline-indicator {
 }
 
 .btn-primary {
-    background-color: #4A90E2;
-    color: white;
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: white !important;
 }
 
 .btn-primary:hover {
-    background-color: #357ABD;
+    background-color: var(--primary-dark) !important;
+    border-color: var(--primary-dark) !important;
+}
+
+.btn {
+    background-color: var(--primary);
+    color: white;
+}
+
+.btn:hover {
+    background-color: var(--primary-dark);
 }
 
 /* Offline Page Specific Styles */
