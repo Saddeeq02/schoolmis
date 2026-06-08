@@ -8,11 +8,11 @@ if ($dbUrl = getenv('MYSQL_URL') ?: getenv('DATABASE_URL')) {
     define('DB_USER', $parts['user']);
     define('DB_PASS', $parts['pass']);
 } else {
-    define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+    define('DB_HOST', getenv('DB_HOST') ?: 'sql207.byetcluster.com');
     define('DB_PORT', getenv('DB_PORT') ?: '3306');
-    define('DB_NAME', getenv('DB_NAME') ?: 'sadik_app');
-    define('DB_USER', getenv('DB_USER') ?: 'school_user');
-    define('DB_PASS', getenv('DB_PASS') ?: 'school_pass');
+    define('DB_NAME', getenv('DB_NAME') ?: 'if0_41646847_schoolmis');
+    define('DB_USER', getenv('DB_USER') ?: 'if0_41646847');
+    define('DB_PASS', getenv('DB_PASS') ?: '447266Ihsan');
 }
 
 // Application Configuration
